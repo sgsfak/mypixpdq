@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="lib/commons-cli-1.0.jar"/>
+	<classpathentry kind="lib" path="lib/commons-lang-1.0.jar"/>
+	<classpathentry kind="lib" path="lib/commons-logging-1.0.4.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-base-1.0.1.jar" sourcepath="D:/ssfak_docs/Projects/iCARDEA/hl7/sw/hapi/hapi_sources/hapi-base-1.0.1-sources.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-examples-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v21-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v22-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v23-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v231-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v24-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v25-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v251-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/hapi-structures-v26-1.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/jboss-j2ee-4.0.2.jar"/>
+	<classpathentry kind="lib" path="lib/jdom-1.1.jar"/>
+	<classpathentry kind="lib" path="lib/junit-3.7.jar"/>
+	<classpathentry kind="lib" path="lib/log4j-1.2.9.jar"/>
+	<classpathentry kind="lib" path="lib/xalan-2.7.0.jar"/>
+	<classpathentry kind="lib" path="lib/xercesImpl-2.4.0.jar"/>
+	<classpathentry kind="lib" path="lib/xml-apis-1.0.b2.jar"/>
+	<classpathentry kind="lib" path="lib/netty-3.2.3.Final.jar" sourcepath="D:/ssfak_docs/Projects/iCARDEA/hl7/sw/hapi/hapi_sources/src/main/java"/>
+	<classpathentry kind="lib" path="lib/xom-1.2.6.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
