@@ -1,0 +1,71 @@
+Patient Identity Feed  (ITI TF-2a / 3.8)
+---------------------------------------
+
+Patient Identity Management, Admit/Register or Update Patient.  The
+following events from a Patient Identity Source Actor will trigger one
+of the Admit/Register or Update messages:
+
+ - A01 Admission of an in-patient into a facility
+
+ - A04 Registration of an outpatient for a visit of the facility
+
+ - A05 Pre-admission of an in-patient (i.e., registration of patient
+   information ahead of actual admission).
+
+Changes to patient demographics (e.g., change in patient name, patient
+address, etc.) shall trigger the following Admit/Register or Update
+message:
+ 
+ - A08 Update Patient Information
+
+
+The Patient Identity Feed transaction is conducted by the HL7 ADT
+message.
+
+
+PIX Query: ITI-9 (ITI TF-2a / 3.9)
+----------------------------------
+
+This transaction involves a request by the Patient Identifier
+Cross-reference Consumer Actor for a list of patient identifiers that
+correspond to a patient identifier known by the consumer. The request
+is received by the Patient Identifier Cross-reference Manager. The
+Patient Identifier Cross-reference Manager immediately processes the
+request and returns a response in the form of a list of corresponding
+patient identifiers, if any.
+
+The Request for Corresponding Patient Identifiers transaction is
+conducted by the HL7v2.5 QBP^Q23 message.
+
+
+PIX Update Notification: ITI-10 (ITI TF-2a / 3.10)
+--------------------------------------------------
+
+This transaction involves the Patient Identifier Cross-reference
+Manager Actor providing notification of updates to patient identifier
+cross-reference associations to Patient Identifier Cross-reference
+Consumers that have registered (by configuration on the
+Cross-reference Manager) their interest in receiving such
+notifications. This transaction uses HL7's generic Update Person
+Information message to communicate this patient-centric information.
+
+The PIX Update Notification transaction is conducted by the ADT^A31
+message. The Patient Identifier Cross-reference Manager Actor
+initiates this transaction whenever identifier list information is
+updated for a patient.
+
+
+Patient Demographics Query: ITI-21 (ITI TF-2a / 3.21)
+-----------------------------------------------------
+
+This transaction involves a request by the Patient Demographics
+Consumer Actor for information about patients whose demographic data
+match data provided in the query message.  The request is received by
+the Patient Demographics Supplier Actor.  The Patient Demographics
+Supplier Actor immediately processes the request and returns a
+response in the form of demographic information for matching patients
+
+
+The Patient Demographics Query is conducted by the HL7v2.5 QBP^Q22
+message.  The receiver shall respond to the query by sending the
+RSP^K22 message.

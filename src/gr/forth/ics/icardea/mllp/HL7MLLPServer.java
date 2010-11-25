@@ -10,10 +10,13 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.channel.group.ChannelGroup;
+import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import java.nio.charset.Charset;
@@ -22,12 +25,13 @@ import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.Application;
 import ca.uhn.hl7v2.app.ApplicationException;
 import ca.uhn.hl7v2.app.MessageTypeRouter;
+import ca.uhn.hl7v2.app.Responder;
 import ca.uhn.hl7v2.model.Composite;
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.Primitive;
 import ca.uhn.hl7v2.model.Segment;
 import ca.uhn.hl7v2.parser.DefaultXMLParser;
-import ca.uhn.hl7v2.parser.PipeParser;
+import ca.uhn.hl7v2.parser.GenericParser;
 import ca.uhn.hl7v2.util.Terser;
 
 
@@ -45,28 +49,30 @@ class MLLPDecoder extends FrameDecoder {
     protected Object decode(ChannelHandlerContext ctx, 
     		Channel channel, ChannelBuffer buffer) {
 
-		System.out.println("Decoding...");
+		// System.out.println("Decoding...");
+    	if (!buffer.readable())
+    		return null;
     	int last = buffer.writerIndex() - 1;
         if (buffer.getByte(last) != MLLP_Delimiters.MLLP_TRAILER2) {
             return null;
         }
-        buffer.writerIndex(last); // eat MLLP_END2
+        buffer.writerIndex(last); // eat MLLP_TRAILER2
         --last;
         if (buffer.getByte(last) == MLLP_Delimiters.MLLP_TRAILER1)
-            buffer.writerIndex(last); // eat MLLP_END1
+            buffer.writerIndex(last); // eat MLLP_TRAILER1
         	
         int first = buffer.readerIndex();
         if (buffer.getByte(first) == MLLP_Delimiters.MLLP_HEADER) {
-            buffer.readByte(); // increment readerIndex, eat MLLP_START
+            buffer.readByte(); // increment readerIndex, eat MLLP_HEADER
         }
         Message msg = null;
 		try {
-			PipeParser pp = new PipeParser();
+			GenericParser pp = new GenericParser();
 			msg = pp.parse(buffer.toString(Charset.forName("UTF-8")));
 			buffer.readerIndex(buffer.writerIndex());
-		} catch (HL7Exception e3) {
+		} catch (HL7Exception ex) {
 			// TODO Auto-generated catch block
-			e3.printStackTrace();
+			ex.printStackTrace();
 		}
         return msg;
     }
@@ -75,10 +81,9 @@ class MLLPEncoder extends SimpleChannelDownstreamHandler {
 	@Override
 	public void	writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
 		Message res = (Message) e.getMessage();
-		System.out.println("Encoding...");
 		try {
-			PipeParser pp = new PipeParser();
-			byte[] encoded = pp.encode(res).getBytes(Charset.forName("UTF-8"));
+			// GenericParser pp = new GenericParser();
+			byte[] encoded = res.getParser().encode(res).getBytes(Charset.forName("UTF-8"));
 			ChannelBuffer outbuf = ChannelBuffers.buffer(encoded.length + 3);
 			
 			outbuf.writeByte(MLLP_Delimiters.MLLP_HEADER);
@@ -95,29 +100,43 @@ class MLLPEncoder extends SimpleChannelDownstreamHandler {
 }
 class HL7MsgHandler extends SimpleChannelUpstreamHandler {	
 	private MessageTypeRouter router_;
-	public HL7MsgHandler(MessageTypeRouter router) {
+	private ChannelGroup chanGrp_;
+	public HL7MsgHandler(MessageTypeRouter router, ChannelGroup chanGrp) {
 		this.router_ = router;
+		this.chanGrp_ = chanGrp;
 	}
+	@Override
+    public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) {
+      // HERE: Add all accepted channels to the group
+      //       so that they are closed properly on shutdown
+      //       If the added channel is closed before shutdown,
+      //       it will be removed from the group automatically.
+	  this.chanGrp_.add(ctx.getChannel());
+    } 
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent ev) {
 		
 		Message res = null;
+		Message msg = (Message) ev.getMessage();
 		try {
-			Message msg = (Message) ev.getMessage();
-			
 			res = router_.processMessage(msg);
 			
-			ev.getChannel().write(res);
 		} catch (ApplicationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			try {				
+				String err = Responder.logAndMakeErrorMessage(e, (Segment)msg.get("MSH"), msg.getParser(), null);
+				res = msg.getParser().parse(err);
+			} catch (HL7Exception e1) {
+				e1.printStackTrace();
+			}
 		} 
+		if (res != null)
+			ev.getChannel().write(res);
 	}
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
 		// Close the connection when an exception is raised.
-		e.getCause().printStackTrace();
+		// e.getCause().printStackTrace();
 		e.getChannel().close();
 	}
 }
@@ -148,7 +167,7 @@ class TestApp extends ca.uhn.hl7v2.app.DefaultApplication {
 				serializer.flush();
 		          
 				System.out.println("Generating ACK");
-				res = makeACK((Segment) msg.get("MSH"));
+				res = makeACK((Segment) msg.get("MSH"));				
 		 }
 		 catch (IOException e) {
 			 // TODO Auto-generated catch block
@@ -163,9 +182,26 @@ class TestApp extends ca.uhn.hl7v2.app.DefaultApplication {
 public class HL7MLLPServer {
 	public static final int DEFAULT_PORT = 2575;
 	private int port_;
+	private NioServerSocketChannelFactory chanFactory_;
+	public final ChannelGroup chanGrp_ = new DefaultChannelGroup("HL7MLLPServer");
 	private ServerBootstrap bootstrap_;
 	private MessageTypeRouter router_;
-	
+
+	static class HL7MLLPServerShutdown extends Thread {
+	    private HL7MLLPServer server_;
+	    public HL7MLLPServerShutdown(HL7MLLPServer server) {
+	        super();
+	        this.server_ = server;
+	    }
+	    public void run() {
+			System.out.println("SHUT DOWN server!");
+	        try {
+	            this.server_.stop();
+	        } catch (Exception ee) {
+	            ee.printStackTrace();
+	        }
+	    }
+	}
 	public HL7MLLPServer() {
 		this.router_ = new MessageTypeRouter();
 	}
@@ -175,18 +211,19 @@ public class HL7MLLPServer {
 	public void init(int port) {
 		this.port_ = port;
 		// Configure the server.
-		this.bootstrap_ = new ServerBootstrap(
-				new NioServerSocketChannelFactory(
-						Executors.newCachedThreadPool(),
-						Executors.newCachedThreadPool(),
-						10));
+		this.chanFactory_ = new NioServerSocketChannelFactory(
+				Executors.newCachedThreadPool(),
+				Executors.newCachedThreadPool()
+				);
+		this.bootstrap_ = new ServerBootstrap(this.chanFactory_);
 
 		// Set up the pipeline factory.
+		
 		this.bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(
 						new MLLPDecoder(),
-						new HL7MsgHandler(router_),
+						new HL7MsgHandler(router_,chanGrp_),
 						new MLLPEncoder()
 						);
 			}
@@ -206,16 +243,20 @@ public class HL7MLLPServer {
 	}
 	
 	public void run() {
-		System.out.println("Start listening...");
+		System.out.println("Start listening (TCP port: "+ this.port_ + ")...");
 		// Bind and start to accept incoming connections.
-		this.bootstrap_.bind(new InetSocketAddress(this.port_));		
+		Channel bChan = this.bootstrap_.bind(new InetSocketAddress(this.port_));
+		this.chanGrp_.add(bChan);
+		Runtime.getRuntime().addShutdownHook(new HL7MLLPServerShutdown(this));
 	}
-	
+	public void stop() {
+		this.chanGrp_.close().awaitUninterruptibly();
+		this.chanFactory_.releaseExternalResources();
+	}
 	public static void main(String[] args) throws Exception {
 		HL7MLLPServer s = new HL7MLLPServer();
 		s.registerApplication("*", "*", new TestApp()/* new ca.uhn.hl7v2.app.DefaultApplication() */);
 		s.init();
 		s.run();
-
 	}
 }
