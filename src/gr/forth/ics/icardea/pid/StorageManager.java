@@ -1,5 +1,7 @@
 package gr.forth.ics.icardea.pid;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.regex.Pattern;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
@@ -78,7 +80,7 @@ final class StorageManager {
 		coll.update(qry, upd, false, true, com.mongodb.WriteConcern.SAFE);
 	}
 	
-	private void addCritPattern(DBObject o, String key, String value) {
+	private static void addCritPattern(DBObject o, String key, String value) {
 		if (value.indexOf('*') > 0) {
 			value.replace("*", ".*");		
 		}
@@ -88,22 +90,67 @@ final class StorageManager {
 		Pattern re = Pattern.compile(value);
 		o.put(key, re);	
 	}
+	private static void addCritDBObj(DBObject query, PrimKV o, String prefix) {
+		Map m = o.toDBObject().toMap();
+		Iterator it = m.keySet().iterator();
+		while(it.hasNext()) {
+			Object k = it.next();
+			String n = (String) k;
+			String name = prefix+n;
+			Object v = m.get(k);
+			if (v instanceof PrimKV) {
+				PrimKV pv = (PrimKV) v;
+				addCritDBObj(query, pv, name+".");
+			}
+			// query.put(prefix+"."+n, m.get(k));
+			else
+				addCritPattern(query, name, (String) v);
+		}			
+	}
 	public iCARDEA_Patient[] query(iCARDEA_Patient tr) {
 		BasicDBObject query = new BasicDBObject();
-		if (tr.family_name != null)
-			addCritPattern(query, "family_name", tr.family_name);
-		if (tr.given_name != null)
-			addCritPattern(query, "given_name", tr.given_name);
+		/*
+		if (tr.name.family_name != null)
+			addCritPattern(query, "name.family_name", tr.name.family_name);
+		if (tr.name.given_name != null)
+			addCritPattern(query, "name.given_name", tr.name.given_name);
+		if (tr.name.type_code != null)
+			query.put("name.type_code", tr.name.type_code);
+		if (tr.mothers_name.family_name != null)
+			addCritPattern(query, "mothers_name.family_name", tr.mothers_name.family_name);
+		if (tr.mothers_name.given_name != null)
+			addCritPattern(query, "mothers_name.given_name", tr.mothers_name.given_name);
+		if (tr.mothers_name.type_code != null)
+			query.put("mothers_name.type_code", tr.mothers_name.type_code);
+		*/
+		addCritDBObj(query, tr.name, "name.");
+		addCritDBObj(query, tr.mothers_name, "mothers_name.");
+		addCritDBObj(query, tr.mothers_name, "mothers_name.");
+		addCritDBObj(query, tr.addr, "addr.");
+		
 		if (tr.date_of_birth != null)
 			addCritPattern(query, "date_of_birth", tr.date_of_birth);
 		if (tr.sex != null)
 			query.put("sex", tr.sex);
+		if (tr.ssn != null) 
+			addCritPattern(query, "ssn", tr.ssn);
+		if (tr.tel_home != null) 
+			addCritPattern(query, "tel_home", tr.tel_home);
+		if (tr.tel_work != null) 
+			addCritPattern(query, "tel_work", tr.tel_work);
+		if (tr.drivers_lic != null) 
+			addCritPattern(query, "drivers_lic", tr.drivers_lic);
+		if (tr.accnum != null) 
+			addCritPattern(query, "accnum", tr.accnum);
+		
+		java.util.ArrayList<DBObject> ids_or = new java.util.ArrayList<DBObject>();
 		for (iCARDEA_Patient.ID id: tr.ids) {
-			if (id.id != null)
-				query.append(iCARDEA_Patient.ID_PREFIX+id.namespace, id.id);
-			else
-				query.append(iCARDEA_Patient.ID_PREFIX+id.namespace, new BasicDBObject("$exists", true));
+			ids_or.add( id.toDBObject() );
 		}
+		if (ids_or.size() > 0)
+			query.append("ids", 
+					new BasicDBObject("$elemMatch", 
+							QueryBuilder.start().or(ids_or.toArray(new DBObject[0])).get()));
 		
 System.out.println("MONQ="+query);
 

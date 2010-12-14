@@ -55,13 +55,13 @@ final class PIXQueryHandler implements Application {
 		RSP_K23 resp = new RSP_K23();
 		try {
 			String reqMsgCtrlId = m.getMSH().getMessageControlID().getValue();
-			String reqRcvApp = m.getMSH().getReceivingApplication().encode();
+			// String reqRcvApp = m.getMSH().getReceivingApplication().encode();
 			String reqSndApp = m.getMSH().getSendingApplication().encode();
 			
 			HL7Utils.fillResponseHeader(m.getMSH(), resp.getMSH());
 			
-			resp.getMSH().getMsh9_MessageType().parse("RSP^K22^RSP_K22");
-			resp.getMSH().getSendingApplication().parse(reqRcvApp);
+			resp.getMSH().getMsh9_MessageType().parse("RSP^K23^RSP_K23");
+			// resp.getMSH().getSendingApplication().parse(reqRcvApp);
 			resp.getMSH().getReceivingApplication().parse(reqSndApp);
 			resp.getMSA().getMessageControlID().setValue(reqMsgCtrlId);
 			
@@ -106,23 +106,7 @@ final class PIXQueryHandler implements Application {
 
 			if (p != null) {
 				ca.uhn.hl7v2.model.v25.segment.PID pid = resp.getQUERY_RESPONSE().getPID();
-				for (int i = 0; i<p.ids.length; ++i) {
-					iCARDEA_Patient.ID d = p.ids[i];
-					AssigningAuthority auth = AssigningAuthority.find(d.namespace);
-					if (auth == null) {
-						// this should not happen!!
-						auth = new AssigningAuthority(d.namespace, "","");
-					}
-					ca.uhn.hl7v2.model.v25.datatype.CX cx = pid.getPid3_PatientIdentifierList(i);
-					cx.getCx4_AssigningAuthority().getHd1_NamespaceID().setValue(d.namespace);
-					cx.getCx4_AssigningAuthority().getHd2_UniversalID().setValue(auth.universal_id);
-					cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().setValue(auth.universal_type);
-					cx.getCx1_IDNumber().setValue(d.id);
-				}
-				if (p.family_name != null)
-					pid.getPid5_PatientName(0).getFamilyName().getFn1_Surname().setValue(p.family_name);
-				if (p.given_name != null)
-					pid.getPid5_PatientName(0).getGivenName().setValue(p.given_name);
+				p.toPidv25(pid);
 			}
 			else
 				resp.getQAK().getQak2_QueryResponseStatus().setValue("NF");
@@ -131,11 +115,10 @@ final class PIXQueryHandler implements Application {
 		} catch (HL7Exception e) {
 			e.printStackTrace();
 			try {
-				resp.getMSA().getAcknowledgmentCode().setValue("AE");
-				resp.getMSA().getTextMessage().setValue(e.getMessage());
-				resp.getERR().getErr3_HL7ErrorCode().getCwe1_Identifier().setValue(""+e.getErrorCode());
-				resp.getERR().getErr3_HL7ErrorCode().getCwe2_Text().setValue(e.getMessage());
-
+				resp.getMSA().getMsa1_AcknowledgmentCode().setValue("AE");
+				// resp.getMSA().getTextMessage().setValue(e.getMessage());
+				HL7Utils.fillErrHeader(resp, e);
+				
 				resp.getQAK().getQak1_QueryTag().setValue(qt);
 				resp.getQAK().getQak2_QueryResponseStatus().setValue("AE");
 				resp.getQPD().parse(qpd.encode());

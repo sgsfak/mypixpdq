@@ -8,7 +8,10 @@ import ca.uhn.hl7v2.app.ApplicationException;
 import ca.uhn.hl7v2.app.DefaultApplication;
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.Segment;
+import ca.uhn.hl7v2.model.Type;
 import ca.uhn.hl7v2.model.v231.segment.PID;
+import ca.uhn.hl7v2.model.v231.message.ACK;
+import ca.uhn.hl7v2.model.v25.message.RSP_K21;
 import ca.uhn.hl7v2.util.Terser;
 
 /**
@@ -56,31 +59,56 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 	 * See ITI-vol2a, 3.8
 	 */
 	public Message processMessage(Message msg) throws ApplicationException{
-		Terser t = new Terser(msg);
-		Message resp = null;
+		Terser terser = new Terser(msg);
+		ACK a = null;
 		try {
-			String trigEvent = t.get("/MSH-9-2");
-			Segment s = t.getSegment("/PID");
+			String trigEvent = terser.get("/MSH-9-2");
+			a = (ACK) makeACK( (Segment) msg.get("MSH"));
+			a.getMSH().getMsh9_MessageType().parse("ACK^"+trigEvent);
+			
+			HL7Utils.fillResponseHeader(terser.getSegment("/MSH"), a.getMSH());
+			
+			Segment s = terser.getSegment("/PID");
 			PID pid = (PID) s;
-			System.out.println("PID:"+pid);
+			Type[] tt = pid.getField(3);
+			for (Type t: tt) {
+				AssigningAuthority auth = null;
+				String tons = Terser.getPrimitive(t, 4, 1).getValue();
+				if (tons == null || "".equals(tons)) {
+					String uid = Terser.getPrimitive(t, 4, 2).getValue();
+					String uid_type = Terser.getPrimitive(t, 4, 3).getValue();
+					auth = AssigningAuthority.find_by_uid(uid, uid_type);
+				}
+				else
+					auth = AssigningAuthority.find(tons);
+				if (auth == null) {
+					HL7Exception ex = new HL7Exception("Unsupported authority:"+pid.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+					throw ex;
+				}
+			}
+			
+			System.out.println("PID:"+pid.encode());
 			iCARDEA_Patient tr = iCARDEA_Patient.create_from_PID(pid);
 			
 			if ("A08".equals(trigEvent)) {
-				if (tr.ids.length == 0)
+				if (tr.ids.size() == 0)
 					throw new HL7Exception("No identifiers given", HL7Exception.DATA_TYPE_ERROR);
+				// iCARDEA_Patient m = StorageManager.getInstance().retrieve(tr.ids[0]);
+				
 				StorageManager.getInstance().update_pid(tr);
 			}
 			else 
 				StorageManager.getInstance().insert_pid(tr);
-			resp = msg.generateACK();
+			a.getMSA().getMsa2_MessageControlID().setValue(terser.get("/MSH-10"));
+			a.getMSA().getMsa1_AcknowledgementCode().setValue("AA");
+			
 		} catch (HL7Exception e) {
 			e.printStackTrace();
 			try {
-				resp = msg.generateACK("AE", e);
+				a.getMSA().getMsa1_AcknowledgementCode().setValue("AE");
+				// a.getMSA().getMsa3_TextMessage().setValue(e.getMessage());
+				// HL7Utils.fillErrHeader(a, e);
 			} catch (HL7Exception ex) {
-				ex.printStackTrace();
-				throw new ApplicationException(ex.getMessage(), ex);
-			} catch (IOException ex) {
 				ex.printStackTrace();
 				throw new ApplicationException(ex.getMessage(), ex);
 			}
@@ -89,11 +117,11 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 			throw new ApplicationException(e.getMessage(), e);
 		}
 		try {
-			System.out.println("Sending:\n"+resp.encode());
+			System.out.println("Sending:\n"+a.encode());
 		} catch (HL7Exception e) {
 		}
 		
-		return resp;
+		return a;
 	}
 }
 

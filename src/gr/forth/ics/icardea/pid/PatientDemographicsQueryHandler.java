@@ -8,6 +8,7 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v25.message.QBP_Q21;
 import ca.uhn.hl7v2.model.v25.message.RSP_K21;
 import ca.uhn.hl7v2.model.v25.segment.QPD;
+import ca.uhn.hl7v2.util.Terser;
 
 /**
  * Patient Demographics Query: ITI-21 (ITI TF-2a / 3.21)
@@ -54,16 +55,30 @@ class PatientDemographicsQueryHandler implements Application {
 		// See also the OpenPIXPQD implementation at http://goo.gl/ohoOJ
 		try {
 			String reqMsgCtrlId = m.getMSH().getMessageControlID().getValue();
-			String reqRcvApp = m.getMSH().getReceivingApplication().encode();
+			// String reqRcvApp = m.getMSH().getReceivingApplication().encode();
 			String reqSndApp = m.getMSH().getSendingApplication().encode();
 			
 			HL7Utils.fillResponseHeader(m.getMSH(), resp.getMSH());
 			
-			resp.getMSH().getMsh9_MessageType().parse("RSP^K22^RSP_K22");
-			resp.getMSH().getSendingApplication().parse(reqRcvApp);
+			resp.getMSH().getMsh9_MessageType().parse("RSP^K22^RSP_K21");
+			// resp.getMSH().getSendingApplication().parse(reqRcvApp);
 			resp.getMSH().getReceivingApplication().parse(reqSndApp);
 			resp.getMSA().getMessageControlID().setValue(reqMsgCtrlId);
-			
+
+			AssigningAuthority fromAuth = null;
+			String ns = Terser.get(qpd, 8, 0, 4, 1);
+			if (ns != null && !"".equals(ns)) {
+				fromAuth = AssigningAuthority.find(ns);
+				if (fromAuth == null) {
+					HL7Exception ex = new HL7Exception("Unsupported authority:"+qpd.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+					ex.setSegmentName("QPD");
+					ex.setSegmentRepetition(1);
+					ex.setFieldPosition(8);
+					throw ex;
+				}
+			}
+
+
 			int num = qpd.getField(QIP_FLD_NUM).length;
 			iCARDEA_Patient criteria = new iCARDEA_Patient();
 			String selId = null, selIdNS = null;
@@ -77,13 +92,31 @@ class PatientDemographicsQueryHandler implements Application {
 				// System.out.println(trait+"="+val);
 				
 				if (trait.equalsIgnoreCase(iCARDEA_Patient.FNAME_SEG_FLD))
-					criteria.family_name = val;
+					criteria.name.family_name = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.GNAME_SEG_FLD))
-					criteria.given_name = val;
+					criteria.name.given_name = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.MOT_FNAME_SEG_FLD))
+					criteria.mothers_name.family_name = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.MOT_GNAME_SEG_FLD))
+					criteria.mothers_name.given_name = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_STREET_SEG_FLD))
+					criteria.addr.street = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_CITY_SEG_FLD))
+					criteria.addr.city = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_STATE_SEG_FLD))
+					criteria.addr.state = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_ZIP_SEG_FLD))
+					criteria.addr.zip = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_COUNTRY_SEG_FLD))
+					criteria.addr.country = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ADDR_TYPE_SEG_FLD))
+					criteria.addr.type = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.DOB_SEG_FLD))
 					criteria.date_of_birth = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.SE×_SEG_FLD))
 					criteria.sex = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ACCNUM_SEG_FLD))
+					criteria.accnum = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ID_SEG_FLD))
 					selId = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.IDNS_SEG_FLD))
@@ -91,8 +124,8 @@ class PatientDemographicsQueryHandler implements Application {
 				else
 					throw new HL7Exception("Unsupported QIP:"+trait, HL7Exception.DATA_TYPE_ERROR);
 			}
-			if (selIdNS != null)
-				criteria.ids = new  iCARDEA_Patient.ID[]{ new iCARDEA_Patient.ID(selIdNS, selId)};
+			if (selIdNS != null || selId != null)
+				criteria.ids.add(new iCARDEA_Patient.ID(selIdNS, selId));
 			
 				
 		
@@ -106,27 +139,7 @@ class PatientDemographicsQueryHandler implements Application {
 			for (iCARDEA_Patient p : pats) {
 				ca.uhn.hl7v2.model.v25.segment.PID pid = resp
 						.getQUERY_RESPONSE(k++).getPID();
-				for (int i = 0; i<p.ids.length; ++i) {
-					iCARDEA_Patient.ID d = p.ids[i];
-					AssigningAuthority auth = AssigningAuthority.find(d.namespace);
-					if (auth == null) {
-						// this should not happen!!
-						auth = new AssigningAuthority(d.namespace, "","");
-					}
-					ca.uhn.hl7v2.model.v25.datatype.CX cx = pid.getPid3_PatientIdentifierList(i);
-					cx.getCx4_AssigningAuthority().getHd1_NamespaceID().setValue(d.namespace);
-					cx.getCx4_AssigningAuthority().getHd2_UniversalID().setValue(auth.universal_id);
-					cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().setValue(auth.universal_type);
-					cx.getCx1_IDNumber().setValue(d.id);
-				}
-				if (p.family_name != null)
-					pid.getPid5_PatientName(0).getFamilyName().getFn1_Surname().setValue(p.family_name);
-				if (p.given_name != null)
-					pid.getPid5_PatientName(0).getGivenName().setValue(p.given_name);
-				if (p.date_of_birth != null)
-					pid.getDateTimeOfBirth().getTs1_Time().parse(p.date_of_birth);
-				if (p.sex != null)
-					pid.getPid8_AdministrativeSex().setValue(p.sex);
+				p.toPidv25(pid);
 			}
 			if (pats.length == 0)
 				resp.getQAK().getQak2_QueryResponseStatus().setValue("NF");
@@ -137,10 +150,8 @@ class PatientDemographicsQueryHandler implements Application {
 			e.printStackTrace();
 			try {
 				resp.getMSA().getAcknowledgmentCode().setValue("AE");
-				resp.getMSA().getTextMessage().setValue(e.getMessage());
-				resp.getERR().getErr3_HL7ErrorCode().getCwe1_Identifier().setValue(""+e.getErrorCode());
-				resp.getERR().getErr3_HL7ErrorCode().getCwe2_Text().setValue(e.getMessage());
-
+				// resp.getMSA().getTextMessage().setValue(e.getMessage());
+				HL7Utils.fillErrHeader(resp, e);
 				resp.getQAK().getQak1_QueryTag().setValue(qt);
 				resp.getQAK().getQak2_QueryResponseStatus().setValue("AE");
 				resp.getQPD().parse(qpd.encode());

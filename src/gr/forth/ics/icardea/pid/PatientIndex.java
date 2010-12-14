@@ -105,7 +105,9 @@ public class PatientIndex {
 	public static void usage() {
 		outs.println("java PatientIndex <config.ini>\n") ;
 	}
-	
+
+	public static String app_name = "PID"; 
+	public static String fac_name = "icardeaPlatform"; 
 	public void run(String[] args) throws Exception {
 		if (args.length != 1) {
 			usage();
@@ -116,6 +118,8 @@ public class PatientIndex {
 
 		int port = cfg.getKeyIntValue("server", "port", 2575);
 		String dbHost = cfg.getKeyValue("server", "mongo_host", "localhost");
+		PatientIndex.app_name = cfg.getKeyValue("server", "application_name", app_name);
+		PatientIndex.fac_name = cfg.getKeyValue("server", "facility_name", fac_name);
 		
 
 		for (String sec: cfg.getSections().keySet()) {
