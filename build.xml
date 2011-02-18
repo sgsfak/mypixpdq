@@ -43,6 +43,7 @@
 	<target name="run" depends="compile" description="Runs the iCARDEA PIX/PDQ Server...">
 		<java fork="yes" className="gr.forth.ics.icardea.pid.PatientIndex">
 			<classpath refid="class.path"/>
+			<arg value="config.ini"/>
 		</java>
 	</target>
 </project>

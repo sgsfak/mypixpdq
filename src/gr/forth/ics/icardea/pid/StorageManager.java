@@ -1,5 +1,6 @@
 package gr.forth.ics.icardea.pid;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -56,23 +57,15 @@ final class StorageManager {
 		o.put("created_", new java.util.Date());
 		coll.save(o, com.mongodb.WriteConcern.SAFE);
 	}
-	public void update_pid(iCARDEA_Patient tr) {
+	public void update_pid(iCARDEA_Patient.ID id, iCARDEA_Patient tr) {
 		DBCollection coll = this.db_.getCollection(COLL_NAME);
+
+		BasicDBObject qry = new BasicDBObject();;
+		qry.append("ids", 
+					new BasicDBObject("$elemMatch", id.toDBObject() ));		
 		DBObject o = tr.toDBObject();
-		java.util.ArrayList<DBObject> ids = new java.util.ArrayList<DBObject>();
-		for (String k: o.keySet()) {
-			if (k.startsWith(iCARDEA_Patient.ID_PREFIX))
-				ids.add(new BasicDBObject(k, o.get(k)));
-		}
-		if (ids.size() == 0)
-			return;
-		DBObject qry;
-		if (ids.size() == 1)
-			qry = ids.get(0);
-		else {
-			QueryBuilder q = new QueryBuilder();
-			qry = q.or(ids.toArray(new DBObject[0])).get();
-		}
+		o.put("modified_", new java.util.Date());
+		o.removeField("ids");
 		DBObject upd = new BasicDBObject("$set", o);
 		
 	System.out.println("UMONQ="+qry);
@@ -109,22 +102,8 @@ final class StorageManager {
 	}
 	public iCARDEA_Patient[] query(iCARDEA_Patient tr) {
 		BasicDBObject query = new BasicDBObject();
-		/*
-		if (tr.name.family_name != null)
-			addCritPattern(query, "name.family_name", tr.name.family_name);
-		if (tr.name.given_name != null)
-			addCritPattern(query, "name.given_name", tr.name.given_name);
-		if (tr.name.type_code != null)
-			query.put("name.type_code", tr.name.type_code);
-		if (tr.mothers_name.family_name != null)
-			addCritPattern(query, "mothers_name.family_name", tr.mothers_name.family_name);
-		if (tr.mothers_name.given_name != null)
-			addCritPattern(query, "mothers_name.given_name", tr.mothers_name.given_name);
-		if (tr.mothers_name.type_code != null)
-			query.put("mothers_name.type_code", tr.mothers_name.type_code);
-		*/
+		
 		addCritDBObj(query, tr.name, "name.");
-		addCritDBObj(query, tr.mothers_name, "mothers_name.");
 		addCritDBObj(query, tr.mothers_name, "mothers_name.");
 		addCritDBObj(query, tr.addr, "addr.");
 		
@@ -143,14 +122,17 @@ final class StorageManager {
 		if (tr.accnum != null) 
 			addCritPattern(query, "accnum", tr.accnum);
 		
-		java.util.ArrayList<DBObject> ids_or = new java.util.ArrayList<DBObject>();
+		ArrayList<DBObject> ids_or = new ArrayList<DBObject>();
 		for (iCARDEA_Patient.ID id: tr.ids) {
 			ids_or.add( id.toDBObject() );
 		}
-		if (ids_or.size() > 0)
+		if (ids_or.size() > 1)
 			query.append("ids", 
 					new BasicDBObject("$elemMatch", 
 							QueryBuilder.start().or(ids_or.toArray(new DBObject[0])).get()));
+		else if (ids_or.size() == 1)
+			query.append("ids", 
+					new BasicDBObject("$elemMatch", ids_or.get(0)));
 		
 System.out.println("MONQ="+query);
 
@@ -158,7 +140,7 @@ System.out.println("MONQ="+query);
 		final int SORT_ORDER = -1; // descending 
         DBCursor cur = coll.find(query).sort(new BasicDBObject("created_",SORT_ORDER)).limit(100);
 
-		java.util.ArrayList<iCARDEA_Patient> patLst = new java.util.ArrayList<iCARDEA_Patient>();
+		ArrayList<iCARDEA_Patient> patLst = new ArrayList<iCARDEA_Patient>();
         while(cur.hasNext()) {
         	iCARDEA_Patient o = iCARDEA_Patient.create_from_DBObject(cur.next());
         	patLst.add(o);
@@ -168,8 +150,10 @@ System.out.println("MONQ="+query);
 	}
 
 	public iCARDEA_Patient retrieve(iCARDEA_Patient.ID id, String... idNS) {
-		BasicDBObject query = new BasicDBObject(iCARDEA_Patient.ID_PREFIX+id.namespace, id.id);
-		
+		//BasicDBObject query = new BasicDBObject(iCARDEA_Patient.ID_PREFIX+id.namespace, id.id);
+		BasicDBObject query = new BasicDBObject();
+		query.append("ids", 
+				new BasicDBObject("$elemMatch", id.toDBObject()));
 		DBCollection coll = this.db_.getCollection(COLL_NAME);
 		DBObject dbObj = null;
 		if (idNS.length > 0) {
@@ -178,6 +162,7 @@ System.out.println("MONQ="+query);
 				fo.put(iCARDEA_Patient.ID_PREFIX+f, 1);
 			fo.put("family_name", 1);
 			fo.put("given_name", 1);
+			fo.put("ids", 1);
 			dbObj = coll.findOne(query, fo);
 			
 		}

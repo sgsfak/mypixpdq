@@ -75,8 +75,13 @@ final class PIXQueryHandler implements Application {
 			}
 			else 
 				fromAuth = AssigningAuthority.find(ns);
-			if (fromAuth == null)
-				throw new HL7Exception("Unsupported authority:"+qpd.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+			if (fromAuth == null) {
+				HL7Exception ex = new HL7Exception("Unsupported authority:"+qpd.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+				ex.setSegmentName("QPD");
+				ex.setSegmentRepetition(1);
+				ex.setFieldPosition(3);
+				throw ex;
+			}
 			
 			iCARDEA_Patient.ID fromId = new iCARDEA_Patient.ID(ns, id);
 
@@ -92,19 +97,30 @@ final class PIXQueryHandler implements Application {
 				}
 				else
 					auth = AssigningAuthority.find(tons);
-				if (auth == null)
-					throw new HL7Exception("Unsupported authority:"+t.encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+				if (auth == null) {
+					HL7Exception ex = new HL7Exception("Unsupported authority:"+t.encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+					ex.setSegmentName("QPD");
+					ex.setSegmentRepetition(1);
+					ex.setFieldPosition(4);
+					throw ex;
+				}
 				hs.add(auth.namespace);
 			}
 			String[] toNS = new String[0];
 			toNS = hs.toArray(toNS);
 			iCARDEA_Patient p = StorageManager.getInstance().retrieve(fromId, toNS);
-
+								
 			resp.getQAK().getQak1_QueryTag().setValue(qt);
 			resp.getQAK().getQak2_QueryResponseStatus().setValue("OK");
 			resp.getQPD().parse(qpd.encode());
 
 			if (p != null) {
+				// We need to remove namespaces that were not requested
+				for (java.util.ListIterator<iCARDEA_Patient.ID> it = p.ids.listIterator(); it.hasNext();) {
+					iCARDEA_Patient.ID n = it.next();
+					if (!hs.contains(n.namespace))
+						it.remove();
+				}
 				ca.uhn.hl7v2.model.v25.segment.PID pid = resp.getQUERY_RESPONSE().getPID();
 				p.toPidv25(pid);
 			}

@@ -89,16 +89,20 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 			
 			System.out.println("PID:"+pid.encode());
 			iCARDEA_Patient tr = iCARDEA_Patient.create_from_PID(pid);
-			
+
+			if (tr.ids.size() == 0)
+				throw new HL7Exception("No identifiers given", HL7Exception.DATA_TYPE_ERROR);
 			if ("A08".equals(trigEvent)) {
-				if (tr.ids.size() == 0)
-					throw new HL7Exception("No identifiers given", HL7Exception.DATA_TYPE_ERROR);
-				// iCARDEA_Patient m = StorageManager.getInstance().retrieve(tr.ids[0]);
-				
-				StorageManager.getInstance().update_pid(tr);
+				// XXX: Here we use the first (and only?) ID to find what entry to update!
+				StorageManager.getInstance().update_pid(tr.ids.get(0), tr);
 			}
-			else 
+			else {
+				for (iCARDEA_Patient.ID id: tr.ids) {
+					if (null != StorageManager.getInstance().retrieve(id))
+						throw new HL7Exception("Patient exists already!", HL7Exception.DATA_TYPE_ERROR);
+				}
 				StorageManager.getInstance().insert_pid(tr);
+			}
 			a.getMSA().getMsa2_MessageControlID().setValue(terser.get("/MSH-10"));
 			a.getMSA().getMsa1_AcknowledgementCode().setValue("AA");
 			

@@ -156,45 +156,6 @@ final class iCARDEA_Patient extends PrimKV {
 			ad.getXad7_AddressType().setValue(this.type);
 			return ad;
 		}
-/*
-		public DBObject toDBObject() {
-			BasicDBObject o = new BasicDBObject();
-			try {
-				for (Field f: this.getClass().getDeclaredFields()) {
-					Object v = f.get(this);
-					if (v != null)
-						o.append(f.getName(), v);
-				}
-			} catch (Exception e) { e.printStackTrace(); }
-		
-//			if (this.street != null)
-//				o.append("street", this.street);
-//			if (this.city != null)
-//				o.append("city", this.city);
-//			if (this.state != null)
-//				o.append("state", this.state);
-//			if (this.zip != null)
-//				o.append("zip", this.zip);
-//			if (this.country != null)
-//				o.append("country", this.country);
-//			if (this.type != null)
-//				o.append("type", this.type);
-			
-			return o;
-		}
-
-		public static Address create_from_DBObject(DBObject o) {
-			Address n = new Address();
-			try {
-				for (Field f: n.getClass().getDeclaredFields()) {
-					String k = f.getName();
-					if (o.containsField(k))
-						f.set(n, o.get(k));
-				}
-			} catch (Exception e) { e.printStackTrace(); }
-			return n;
-		}
-		*/
 	}
 	public List<ID> ids;
 	public Name name;
@@ -339,11 +300,7 @@ final class iCARDEA_Patient extends PrimKV {
 			obj.append("drivers_lic", this.drivers_lic);
 		if (this.accnum != null)
 			obj.append("accnum", this.accnum);
-		// obj.append("ids", Arrays.asList(this.ids));
-		/*
-		for (ID id: this.ids)
-			obj.append(ID_PREFIX+id.namespace, id.id);
-		*/
+		
 		List<DBObject> lids = new ArrayList<DBObject>();
 		for (ID id: this.ids)
 			lids.add(id.toDBObject());
