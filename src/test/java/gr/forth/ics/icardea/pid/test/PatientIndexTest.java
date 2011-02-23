@@ -91,7 +91,7 @@ public class  PatientIndexTest {
 			int ind = nv.indexOf('^');
 			String trait = nv.substring(0, ind);
 			String val = nv.substring(ind+1);
-			System.out.println(trait+"="+val);
+			// System.out.println(trait+"="+val);
 		}
 		a.getRCP().getRcp1_QueryPriority().setValue("I"); // immediate mode response
 		return a;
