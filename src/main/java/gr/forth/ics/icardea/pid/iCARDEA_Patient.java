@@ -72,7 +72,7 @@ class PrimKV {
 		} catch (Exception e) { e.printStackTrace(); }
 	}
 }
-final class iCARDEA_Patient extends PrimKV {
+final public class iCARDEA_Patient extends PrimKV {
 	public static final String ID_PREFIX = "id:";
 	/* The following are used for the QPD-3 segment 
 	 * (QIP - query input parameter list) of the 

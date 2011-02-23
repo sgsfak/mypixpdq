@@ -10,7 +10,7 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.primitive.CommonTS;
 import ca.uhn.hl7v2.util.Terser;
 
-final class HL7Utils {
+final public class HL7Utils {
 	public final static String ENC_CHARS = "^~\\&";
 	public final static String FLD_SEP = "|";
 

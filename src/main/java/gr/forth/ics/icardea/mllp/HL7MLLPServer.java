@@ -2,6 +2,8 @@ package gr.forth.ics.icardea.mllp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
+
+import org.apache.log4j.Logger;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -180,6 +182,8 @@ class TestApp extends ca.uhn.hl7v2.app.DefaultApplication {
 	 }
 }
 public class HL7MLLPServer {
+	static Logger logger = Logger.getLogger(HL7MLLPServer.class);
+
 	public static final int DEFAULT_PORT = 2575;
 	private int port_;
 	private NioServerSocketChannelFactory chanFactory_;
@@ -194,7 +198,7 @@ public class HL7MLLPServer {
 	        this.server_ = server;
 	    }
 	    public void run() {
-			System.out.println("SHUT DOWN server!");
+			// logger.info("SHUTTING DOWN server!");
 	        try {
 	            this.server_.stop();
 	        } catch (Exception ee) {
@@ -243,13 +247,14 @@ public class HL7MLLPServer {
 	}
 	
 	public void run() {
-		System.out.println("Start listening (TCP port: "+ this.port_ + ")...");
+		logger.info("Starting MLLP server (TCP port: "+ this.port_ + ")...");
 		// Bind and start to accept incoming connections.
 		Channel bChan = this.bootstrap_.bind(new InetSocketAddress(this.port_));
 		this.chanGrp_.add(bChan);
 		Runtime.getRuntime().addShutdownHook(new HL7MLLPServerShutdown(this));
 	}
 	public void stop() {
+		logger.info("Stopping MLLP server...");
 		this.chanGrp_.close().awaitUninterruptibly();
 		this.chanFactory_.releaseExternalResources();
 	}
