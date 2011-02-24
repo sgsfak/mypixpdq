@@ -10,7 +10,7 @@
 	<groupId>gr.forth.ics.icardea</groupId>
 	<artifactId>icardea-pixpdq</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0</version>
 	<name>icardea-pixpdq</name>
 	<repositories>
 		<repository>
@@ -135,4 +135,34 @@
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
+<profiles>
+ <profile>
+  <id>run</id>
+  <build>
+   <plugins>
+    <plugin>
+     <groupId>org.codehaus.mojo</groupId>
+     <artifactId>exec-maven-plugin</artifactId>
+     <version>1.1.1</version>
+     <executions>
+      <execution>
+       <phase>test</phase>
+       <goals>
+        <goal>java</goal>
+       </goals>
+       <configuration>
+        <mainClass>gr.forth.ics.icardea.pid.PatientIndex</mainClass>
+	<classpathScope>runtime</classpathScope>
+        <arguments>
+         <argument>config.ini</argument>
+        </arguments>
+       </configuration>
+      </execution>
+     </executions>
+    </plugin>
+   </plugins>
+  </build>
+ </profile>
+</profiles>
+	
 </project>

@@ -4,14 +4,17 @@
 	<property name="project.base.dir" value="." />
 	<property name="name" value="HL7MLLPServer" />
 	<property name="src" value="${project.base.dir}/src" />
-	<property name="build" value="${project.base.dir}/bin" />
-	<property name="classes" value="${build}" />
+	<property name="build" value="${project.base.dir}/target" />
+	<property name="classes" value="${build}/classes" />
 	<property name="lib" value="lib" />
+	<property name="version.num" value="1.0" />
+	<property name="jar.file" value="${build}/icardea-pixpdq-${version.num}.jar" />
 	<path id="class.path">
-		<pathelement location="${build}" />
+		<pathelement location="${classes}" />
 		<fileset dir="${lib}">
 			<include name="*.jar" />
 		</fileset>
+		<pathelement location="${src}/main/resources" />
 	</path>
 	<target name="compile">
 		<javac debug="on" memoryMaximumSize="256m" memoryInitialSize="256m" fork="true" destdir="${classes}" srcdir="${src}">
@@ -22,9 +25,7 @@
 		<tstamp>
 			<format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
 		</tstamp>
-		<property name="version.num" value="1.00" />
 		<buildnumber file="build.num" />
-		<delete file="icardeahl7server.jar" />
 		<delete file="MANIFEST.MF" />
 		<manifest file="MANIFEST.MF">
 			<attribute name="Built-By" value="${user.name}" />
@@ -32,12 +33,13 @@
 			<attribute name="Built-Date" value="${TODAY}" />
 			<attribute name="Implementation-Version" value="${version.num}-b${build.number}" />
 		</manifest>
-		<jar destfile="icardeahl7server.jar" basedir="${build}" includes="**/*.class" manifest="MANIFEST.MF" />
+		<jar destfile="${jar.file}" basedir="${classes}" includes="**/*.class" manifest="MANIFEST.MF" />
 	</target>
 	<target name="clean">
 		<delete>
-			<fileset dir="${build}" includes="**/*.class" />
+			<fileset dir="${classes}" includes="**/*.class" />
 			<fileset file="MANIFEST.MF" />
+			<fileset file="${jar.file}" />
 		</delete>
 	</target>
 	<target name="run" depends="compile" description="Runs the iCARDEA PIX/PDQ Server...">
