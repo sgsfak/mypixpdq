@@ -191,6 +191,9 @@ public class HL7MLLPServer {
 	private ServerBootstrap bootstrap_;
 	private MessageTypeRouter router_;
 
+	public int port() {
+		return this.port_;
+	}
 	static class HL7MLLPServerShutdown extends Thread {
 	    private HL7MLLPServer server_;
 	    public HL7MLLPServerShutdown(HL7MLLPServer server) {

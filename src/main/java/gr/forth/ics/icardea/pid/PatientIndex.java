@@ -51,6 +51,9 @@ public class PatientIndex {
 	
 	private HL7MLLPServer mllpServer = null;
 	
+	public int port() {
+		return this.mllpServer.port();
+	}
 	public void run(String[] args) throws Exception {
 		if (args.length != 1) {
 			usage();
