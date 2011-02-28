@@ -99,7 +99,7 @@ public class  PatientIndexTest {
 		if (giv_name!=null)
 			qpd.getField(QIP_FLD_NUM, k++).parse(iCARDEA_Patient.GNAME_SEG_FLD + "^"+giv_name);
 		if (sex !=null)
-			qpd.getField(QIP_FLD_NUM, k++).parse(iCARDEA_Patient.SE×_SEG_FLD + "^" + sex);
+			qpd.getField(QIP_FLD_NUM, k++).parse(iCARDEA_Patient.SEX_SEG_FLD + "^" + sex);
 		if (dob != null)
 			qpd.getField(QIP_FLD_NUM, k++).parse(iCARDEA_Patient.DOB_SEG_FLD + "^" + dob);
 

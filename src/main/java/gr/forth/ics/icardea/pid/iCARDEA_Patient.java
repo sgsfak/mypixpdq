@@ -85,8 +85,8 @@ final public class iCARDEA_Patient extends PrimKV {
 	public static final String MOT_FNAME_SEG_FLD = "@PID.6.1.1";
 	public static final String MOT_GNAME_SEG_FLD = "@PID.6.2";
 	public static final String DOB_SEG_FLD = "@PID.7.1";
-	public static final String SE×_SEG_FLD = "@PID.8";
-	public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
+	public static final String SEX_SEG_FLD = "@PID.8";
+public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
 	public static final String ADDR_CITY_SEG_FLD = "@PID.11.3";
 	public static final String ADDR_STATE_SEG_FLD = "@PID.11.4";
 	public static final String ADDR_ZIP_SEG_FLD = "@PID.11.5";
@@ -307,8 +307,11 @@ final public class iCARDEA_Patient extends PrimKV {
 		obj.append("ids", lids);
 		return obj;
 	}
-	
+
 	public void toPidv25(ca.uhn.hl7v2.model.v25.segment.PID pid) throws HL7Exception {
+		toPidv25(pid, false);
+	}
+	public void toPidv25(ca.uhn.hl7v2.model.v25.segment.PID pid, boolean justIds) throws HL7Exception {
 		iCARDEA_Patient p = this;
 		int i = 0;
 		for (iCARDEA_Patient.ID d: p.ids) {
@@ -324,6 +327,8 @@ final public class iCARDEA_Patient extends PrimKV {
 			cx.getCx1_IDNumber().setValue(d.id);
 			++i;
 		}
+		if (justIds)
+			return;
 		pid.getPid5_PatientName(0).parse(p.name.hl7encode());
 		pid.getPid6_MotherSMaidenName(0).parse(p.mothers_name.hl7encode());
 		if (p.date_of_birth != null)

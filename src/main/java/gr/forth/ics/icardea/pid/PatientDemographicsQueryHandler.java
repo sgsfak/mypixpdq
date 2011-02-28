@@ -1,5 +1,7 @@
 package gr.forth.ics.icardea.pid;
 
+import org.apache.log4j.Logger;
+
 import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.Application;
@@ -28,6 +30,7 @@ import ca.uhn.hl7v2.util.Terser;
  * 
  */
 class PatientDemographicsQueryHandler implements Application {
+	static Logger logger = Logger.getLogger(PatientDemographicsQueryHandler.class);
 
 	final static int QIP_FLD_NUM = 3;
 	
@@ -47,6 +50,10 @@ class PatientDemographicsQueryHandler implements Application {
 	 * See ITI-vol2a, 3.21
 	 */
 	public Message processMessage(Message msg) throws ApplicationException{
+		try {
+			logger.debug("Received:"+msg.encode());
+		} catch (HL7Exception e) {
+		}
 		QBP_Q21 m = (QBP_Q21) msg;
 		QPD qpd = m.getQPD();
 		String qt = qpd.getQpd2_QueryTag().getValue();
@@ -113,7 +120,7 @@ class PatientDemographicsQueryHandler implements Application {
 					criteria.addr.type = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.DOB_SEG_FLD))
 					criteria.date_of_birth = val;
-				else if (trait.equalsIgnoreCase(iCARDEA_Patient.SE×_SEG_FLD))
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.SEX_SEG_FLD))
 					criteria.sex = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.ACCNUM_SEG_FLD))
 					criteria.accnum = val;
@@ -141,9 +148,6 @@ class PatientDemographicsQueryHandler implements Application {
 						.getQUERY_RESPONSE(k++).getPID();
 				p.toPidv25(pid);
 			}
-			if (pats.length == 0)
-				resp.getQAK().getQak2_QueryResponseStatus().setValue("NF");
-
 			resp.getMSA().getAcknowledgmentCode().setValue("AA");
 			
 		} catch (HL7Exception e) {
@@ -176,7 +180,7 @@ class PatientDemographicsQueryHandler implements Application {
 			}
 		}
 		try {
-			System.out.println("Sending:\n"+resp.encode());
+			logger.debug("Sending:"+resp.encode());
 		} catch (HL7Exception e) {
 		}
 		return resp;

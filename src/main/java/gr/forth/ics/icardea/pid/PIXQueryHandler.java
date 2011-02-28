@@ -4,6 +4,8 @@ import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 
 import java.util.HashSet;
 
+import org.apache.log4j.Logger;
+
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.Application;
 import ca.uhn.hl7v2.app.ApplicationException;
@@ -29,6 +31,7 @@ import ca.uhn.hl7v2.util.Terser;
  * 
  */
 final class PIXQueryHandler implements Application {
+	static Logger logger = Logger.getLogger(PIXQueryHandler.class);
 
 	final static int QIP_FLD_NUM = 3;
 	
@@ -47,7 +50,11 @@ final class PIXQueryHandler implements Application {
 	 * See ITI-vol2a, 3.9
 	 */
 	public Message processMessage(Message msg) throws ApplicationException{
-
+		try {
+			logger.debug("Received:"+msg.encode());
+		} catch (HL7Exception e) {
+			
+		}
 		QBP_Q21 m = (QBP_Q21) msg;
 		QPD qpd = m.getQPD();
 		String qt = qpd.getQpd2_QueryTag().getValue();
@@ -116,13 +123,28 @@ final class PIXQueryHandler implements Application {
 
 			if (p != null) {
 				// We need to remove namespaces that were not requested
-				for (java.util.ListIterator<iCARDEA_Patient.ID> it = p.ids.listIterator(); it.hasNext();) {
+				// unless no namespace was requested where we return all
+				for (java.util.ListIterator<iCARDEA_Patient.ID> it = p.ids.listIterator(); !hs.isEmpty() && it.hasNext();) {
 					iCARDEA_Patient.ID n = it.next();
 					if (!hs.contains(n.namespace))
 						it.remove();
 				}
 				ca.uhn.hl7v2.model.v25.segment.PID pid = resp.getQUERY_RESPONSE().getPID();
-				p.toPidv25(pid);
+				p.toPidv25(pid, true);
+				/*
+				 * "To eliminate the issue of conflicting name values between
+				 * Patient Identifier Domains, the Patient Identifier
+				 * Cross-reference Manager Actor shall return in an empty (not
+				 * present) value in the first repetition of field PID-5-Patient
+				 * Name, and shall return a second repetition of field
+				 * PID-5-Patient Name in which the only populated component is
+				 * Component 7 (Name Type Code). Component 7 of repetition 2
+				 * shall contain a value of S (Coded Pseudo-name to assure
+				 * anonymity). All other components of repetition 2 shall be
+				 * empty (not present)."
+				 */
+				pid.getPid5_PatientName(0).parse("");
+				pid.getPid5_PatientName(1).parse("^^^^^^S");
 			}
 			else
 				resp.getQAK().getQak2_QueryResponseStatus().setValue("NF");
@@ -159,7 +181,7 @@ final class PIXQueryHandler implements Application {
 			}
 		}
 		try {
-			System.out.println("Sending:\n"+resp.encode());
+			logger.debug("Sending:"+resp.encode());
 		} catch (HL7Exception e) {
 		}
 		return resp;

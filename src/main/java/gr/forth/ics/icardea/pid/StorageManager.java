@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Pattern;
+
+import org.apache.log4j.Logger;
+
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -21,6 +24,8 @@ import com.mongodb.QueryBuilder;
  * 
  */
 final class StorageManager {
+	static Logger logger = Logger.getLogger(StorageManager.class);
+	
 	public static final String DB_NAME = "pid";
 	public static final String COLL_NAME = "patients";
 	
@@ -68,7 +73,7 @@ final class StorageManager {
 		o.removeField("ids");
 		DBObject upd = new BasicDBObject("$set", o);
 		
-	System.out.println("UMONQ="+qry);
+		logger.debug("UMONQ="+qry);
 		
 		coll.update(qry, upd, false, true, com.mongodb.WriteConcern.SAFE);
 	}
@@ -134,7 +139,7 @@ final class StorageManager {
 			query.append("ids", 
 					new BasicDBObject("$elemMatch", ids_or.get(0)));
 		
-System.out.println("MONQ="+query);
+		logger.debug("MONQ="+query);
 
 		DBCollection coll = this.db_.getCollection(COLL_NAME);
 		final int SORT_ORDER = -1; // descending 

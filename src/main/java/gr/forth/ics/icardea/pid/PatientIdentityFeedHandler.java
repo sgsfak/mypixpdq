@@ -3,6 +3,8 @@ import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 
 import java.io.IOException;
 
+import org.apache.log4j.Logger;
+
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.ApplicationException;
 import ca.uhn.hl7v2.app.DefaultApplication;
@@ -32,6 +34,7 @@ import ca.uhn.hl7v2.util.Terser;
  * The Patient Identity Feed transaction is conducted by the HL7 ADT message.
  */
 final class PatientIdentityFeedHandler extends DefaultApplication {
+	static Logger logger = Logger.getLogger(PatientIdentityFeedHandler.class);
 	
 	public void register(HL7MLLPServer s) {
 		s.registerApplication("ADT", "A01", this);
@@ -59,6 +62,10 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 	 * See ITI-vol2a, 3.8
 	 */
 	public Message processMessage(Message msg) throws ApplicationException{
+		try {
+			logger.debug("Received:"+msg.encode());
+		} catch (HL7Exception e) {
+		}
 		Terser terser = new Terser(msg);
 		ACK a = null;
 		try {
@@ -87,7 +94,7 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 				}
 			}
 			
-			System.out.println("PID:"+pid.encode());
+			logger.debug("PID:"+pid.encode());
 			iCARDEA_Patient tr = iCARDEA_Patient.create_from_PID(pid);
 
 			if (tr.ids.size() == 0)
@@ -121,7 +128,7 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 			throw new ApplicationException(e.getMessage(), e);
 		}
 		try {
-			System.out.println("Sending:\n"+a.encode());
+			logger.debug("Sending:"+a.encode());
 		} catch (HL7Exception e) {
 		}
 		
