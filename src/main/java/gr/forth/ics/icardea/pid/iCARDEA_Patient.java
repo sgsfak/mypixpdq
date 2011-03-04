@@ -190,6 +190,13 @@ public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
 		for (CX cx: pid.getPid3_PatientIdentifierList()) {
 			String id = cx.getCx1_ID().getValue();	
 			String namespace = cx.getCx4_AssigningAuthority().getHd1_NamespaceID().getValue();
+			if (namespace == null || "".equals(namespace)) {
+				String uid = cx.getCx4_AssigningAuthority().getHd2_UniversalID().getValue();
+				String uid_type = cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().getValue();
+				AssigningAuthority auth = AssigningAuthority.find_by_uid(uid, uid_type);
+				namespace = auth.namespace;
+			}
+		
 			System.out.println("{"+namespace+"}"+id);
 			tr.ids.add( new ID(namespace, id));
 			
