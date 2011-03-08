@@ -102,6 +102,9 @@ public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
 			this.namespace = ns;
 			this.id = id;
 		}
+		public String toString() {
+			return id + "@" + namespace;
+		}
 	}
 	public static final class Name extends PrimKV {
 		public String family_name;
