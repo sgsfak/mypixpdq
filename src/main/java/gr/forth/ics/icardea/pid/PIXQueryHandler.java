@@ -102,8 +102,10 @@ final class PIXQueryHandler implements Application {
 					String uid_type = Terser.getPrimitive(t, 4, 3).getValue();
 					auth = AssigningAuthority.find_by_uid(uid, uid_type);
 				}
-				else
-					auth = AssigningAuthority.find(tons);
+				else {
+					auth = AssigningAuthority.find(tons);	
+				}
+					
 				if (auth == null) {
 					HL7Exception ex = new HL7Exception("Unsupported authority:"+t.encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
 					ex.setSegmentName("QPD");

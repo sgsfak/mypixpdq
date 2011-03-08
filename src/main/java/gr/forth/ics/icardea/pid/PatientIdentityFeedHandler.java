@@ -23,17 +23,17 @@ import ca.uhn.hl7v2.util.Terser;
 /**
  * Patient Identity Feed Handler (ITI TF-2a / 3.8)
  *  
- * This is for the Patient Identity Management – Admit/Register or Update
+ * This is for the Patient Identity Management - Admit/Register or Update
  * Patient. The following events from a Patient Identity Source Actor will
  * trigger one of the Admit/Register or Update messages:
- *  - A01 – Admission of an in-patient into a facility
- *  - A04 – Registration of an outpatient for a visit of the facility
- *  - A05 – Pre-admission of an in-patient (i.e., registration of patient
+ *  - A01 - Admission of an in-patient into a facility
+ *  - A04 - Registration of an outpatient for a visit of the facility
+ *  - A05 - Pre-admission of an in-patient (i.e., registration of patient
  * information ahead of actual admission).
  * 
  * Changes to patient demographics (e.g., change in patient name, patient
  * address, etc.) shall trigger the following Admit/Register or Update message:
- *  - A08 – Update Patient Information
+ *  - A08 - Update Patient Information
  *  
  * The Patient Identity Feed transaction is conducted by the HL7 ADT message.
  */
