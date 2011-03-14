@@ -118,7 +118,7 @@ public class  PatientIndexTest {
 	@BeforeClass
 	public static void setup() throws Exception {
 		pid = new PatientIndex();
-		pid.run(new String[]{"config.ini"});
+		pid.run(new String[]{"../../icardea-config/config.ini"});
 
 		connectionHub = ConnectionHub.getInstance();
 	}
