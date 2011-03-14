@@ -60,6 +60,18 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 			return false;
 		}
 	}
+	private String findNamespaceFromCX(CX cx) {
+		String namespace = cx.getCx4_AssigningAuthority().getHd1_NamespaceID().getValue();
+		if (namespace == null || "".equals(namespace)) {
+			String uid = cx.getCx4_AssigningAuthority().getHd2_UniversalID().getValue();
+			String uid_type = cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().getValue();
+			AssigningAuthority auth = AssigningAuthority.find_by_uid(uid, uid_type);
+			if (auth == null)
+				return null;
+			namespace = auth.namespace;
+		}
+		return namespace;
+	}
 	/**
 	 * See ITI-vol2a, 3.8
 	 */
@@ -86,16 +98,10 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 				PID pid = merge.getPIDPD1MRGPV1().getPID();
 				for (CX cx: pid.getPid3_PatientIdentifierList()) {
 					String id = cx.getCx1_ID().getValue();	
-					String namespace = cx.getCx4_AssigningAuthority().getHd1_NamespaceID().getValue();
-					if (namespace == null || "".equals(namespace)) {
-						String uid = cx.getCx4_AssigningAuthority().getHd2_UniversalID().getValue();
-						String uid_type = cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().getValue();
-						AssigningAuthority auth = AssigningAuthority.find_by_uid(uid, uid_type);
-						if (auth == null) {
-							HL7Exception ex = new HL7Exception("Unsupported authority:"+pid.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
-							throw ex;
-						}
-						namespace = auth.namespace;
+					String namespace = findNamespaceFromCX(cx);
+					if (namespace == null) {
+						HL7Exception ex = new HL7Exception("Unsupported authority:"+pid.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+						throw ex;
 					}
 					surv_id = new ID(namespace, id);
 					break;					
@@ -105,17 +111,11 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 				
 				iCARDEA_Patient.ID old_id = null;
 				for (CX cx: mrg.getMrg1_PriorPatientIdentifierList()) {
-					String id = cx.getCx1_ID().getValue();	
-					String namespace = cx.getCx4_AssigningAuthority().getHd1_NamespaceID().getValue();
-					if (namespace == null || "".equals(namespace)) {
-						String uid = cx.getCx4_AssigningAuthority().getHd2_UniversalID().getValue();
-						String uid_type = cx.getCx4_AssigningAuthority().getHd3_UniversalIDType().getValue();
-						AssigningAuthority auth = AssigningAuthority.find_by_uid(uid, uid_type);
-						if (auth == null) {
-							HL7Exception ex = new HL7Exception("Unsupported authority:"+pid.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
-							throw ex;
-						}
-						namespace = auth.namespace;
+					String id = cx.getCx1_ID().getValue();
+					String namespace = findNamespaceFromCX(cx);
+					if (namespace == null) {
+						HL7Exception ex = new HL7Exception("Unsupported authority:"+pid.getField(3, 0).encode(), HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+						throw ex;
 					}
 					old_id = new ID(namespace, id);
 					break;					
