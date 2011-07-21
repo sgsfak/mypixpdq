@@ -88,7 +88,7 @@ class PatientDemographicsQueryHandler implements Application {
 
 			int num = qpd.getField(QIP_FLD_NUM).length;
 			iCARDEA_Patient criteria = new iCARDEA_Patient();
-			String selId = null, selIdNS = null;
+			String selId = null, selIdNS = null, selIdOid = null, selIdType = "ISO";
 			for (int i=0; i<num ;++i) {
 				String nv = qpd.getField(QIP_FLD_NUM, i).encode();
 				int ind = nv.indexOf('^');
@@ -128,13 +128,29 @@ class PatientDemographicsQueryHandler implements Application {
 					selId = val;
 				else if (trait.equalsIgnoreCase(iCARDEA_Patient.IDNS_SEG_FLD))
 					selIdNS = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.IDOID_SEG_FLD))
+					selIdOid = val;
+				else if (trait.equalsIgnoreCase(iCARDEA_Patient.IDTYPE_SEG_FLD))
+					selIdType = val;
 				else
 					throw new HL7Exception("Unsupported QIP:"+trait, HL7Exception.DATA_TYPE_ERROR);
 			}
-			if (selIdNS != null || selId != null)
-				criteria.ids.add(new iCARDEA_Patient.ID(selIdNS, selId));
-			
-				
+			if (selId != null) {
+                                if (selIdNS != null)
+                                        criteria.ids.add(new iCARDEA_Patient.ID(selIdNS, selId));
+                                else if (selIdOid != null){
+                                        AssigningAuthority auth = AssigningAuthority.find_by_uid(selIdOid, selIdType);
+                                        if (auth == null) {
+                                                HL7Exception ex = new HL7Exception("Unsupported authority:"+selIdOid+"&"+selIdType, 
+                                                                                   HL7Exception.UNKNOWN_KEY_IDENTIFIER);
+                                                ex.setSegmentName("QPD");
+                                                ex.setSegmentRepetition(1);
+                                                ex.setFieldPosition(8);
+                                                throw ex;
+                                        }
+                                        criteria.ids.add(new iCARDEA_Patient.ID(auth.namespace, selId));
+                                }
+                        }
 		
 			iCARDEA_Patient[] pats = StorageManager.getInstance().query(criteria);
 			
