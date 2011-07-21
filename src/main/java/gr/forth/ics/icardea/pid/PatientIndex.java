@@ -9,9 +9,8 @@ import ca.uhn.hl7v2.app.DefaultApplication;
 import ca.uhn.hl7v2.app.ApplicationException;
 import ca.uhn.hl7v2.model.Message;
 
-import ca.uhn.hl7v2.model.v25.message.QBP_Q21;
-import ca.uhn.hl7v2.model.v25.segment.QPD;
 import ca.uhn.hl7v2.util.Terser;
+import ca.uhn.hl7v2.validation.impl.NoValidation;
 
 import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 
@@ -97,7 +96,7 @@ public class PatientIndex {
 		
 		CatchAllHandler cah = new CatchAllHandler();
 		this.mllpServer.registerApplication("*", "*", cah);
-		this.mllpServer.init(port);
+		this.mllpServer.init(port, new NoValidation());
 		this.mllpServer.run();
 	}
 	public void stop() {

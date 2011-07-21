@@ -35,6 +35,8 @@ import ca.uhn.hl7v2.model.Segment;
 import ca.uhn.hl7v2.parser.DefaultXMLParser;
 import ca.uhn.hl7v2.parser.GenericParser;
 import ca.uhn.hl7v2.util.Terser;
+import ca.uhn.hl7v2.validation.ValidationContext;
+import ca.uhn.hl7v2.validation.impl.DefaultValidation;
 
 
 import nu.xom.Serializer;
@@ -47,11 +49,14 @@ class MLLP_Delimiters {
 	public static final byte MLLP_TRAILER2 = 0x0d;
 }
 class MLLPDecoder extends FrameDecoder {
+	static Logger logger = Logger.getLogger(MLLPDecoder.class);
+	private ValidationContext validator_;
+	MLLPDecoder(ValidationContext c) {
+		this.validator_ = c;
+	}
     @Override
     protected Object decode(ChannelHandlerContext ctx, 
     		Channel channel, ChannelBuffer buffer) {
-
-		// System.out.println("Decoding...");
     	if (!buffer.readable())
     		return null;
     	int last = buffer.writerIndex() - 1;
@@ -70,7 +75,11 @@ class MLLPDecoder extends FrameDecoder {
         Message msg = null;
 		try {
 			GenericParser pp = new GenericParser();
-			msg = pp.parse(buffer.toString(Charset.forName("UTF-8")));
+			if (this.validator_ != null)
+				pp.setValidationContext(this.validator_);
+                        String data = buffer.toString(Charset.forName("UTF-8"));
+                        logger.info("Recvd HL7 data:\n" + data);
+			msg = pp.parse(data);
 			buffer.readerIndex(buffer.writerIndex());
 		} catch (HL7Exception ex) {
 			// TODO Auto-generated catch block
@@ -80,12 +89,16 @@ class MLLPDecoder extends FrameDecoder {
     }
 }
 class MLLPEncoder extends SimpleChannelDownstreamHandler {
+	static Logger logger = Logger.getLogger(MLLPEncoder.class);
 	@Override
 	public void	writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
 		Message res = (Message) e.getMessage();
 		try {
 			// GenericParser pp = new GenericParser();
-			byte[] encoded = res.getParser().encode(res).getBytes(Charset.forName("UTF-8"));
+                        String data = res.getParser().encode(res);
+                        logger.info("Sending HL7 data:\n" + data);
+                        
+			byte[] encoded = data.getBytes(Charset.forName("UTF-8"));
 			ChannelBuffer outbuf = ChannelBuffers.buffer(encoded.length + 3);
 			
 			outbuf.writeByte(MLLP_Delimiters.MLLP_HEADER);
@@ -186,6 +199,7 @@ public class HL7MLLPServer {
 
 	public static final int DEFAULT_PORT = 2575;
 	private int port_;
+	private ValidationContext validator_ = null;
 	private NioServerSocketChannelFactory chanFactory_;
 	public final ChannelGroup chanGrp_ = new DefaultChannelGroup("HL7MLLPServer");
 	private ServerBootstrap bootstrap_;
@@ -216,7 +230,11 @@ public class HL7MLLPServer {
 		init(DEFAULT_PORT);
 	}
 	public void init(int port) {
+		init(port, null);
+	}
+	public void init(int port, ValidationContext c) {
 		this.port_ = port;
+		this.validator_ = c;
 		// Configure the server.
 		this.chanFactory_ = new NioServerSocketChannelFactory(
 				Executors.newCachedThreadPool(),
@@ -229,7 +247,7 @@ public class HL7MLLPServer {
 		this.bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(
-						new MLLPDecoder(),
+						new MLLPDecoder(validator_),
 						new HL7MsgHandler(router_,chanGrp_),
 						new MLLPEncoder()
 						);
@@ -264,7 +282,7 @@ public class HL7MLLPServer {
 	public static void main(String[] args) throws Exception {
 		HL7MLLPServer s = new HL7MLLPServer();
 		s.registerApplication("*", "*", new TestApp()/* new ca.uhn.hl7v2.app.DefaultApplication() */);
-		s.init();
+		s.init(HL7MLLPServer.DEFAULT_PORT, new ca.uhn.hl7v2.validation.impl.NoValidation());
 		s.run();
 	}
 }
