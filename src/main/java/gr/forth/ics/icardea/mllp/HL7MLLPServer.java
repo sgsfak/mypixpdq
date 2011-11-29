@@ -202,7 +202,7 @@ public class HL7MLLPServer {
 	private ValidationContext validator_ = null;
 	private NioServerSocketChannelFactory chanFactory_;
 	public final ChannelGroup chanGrp_ = new DefaultChannelGroup("HL7MLLPServer");
-	private ServerBootstrap bootstrap_;
+	private ServerBootstrap mllp_bootstrap_;
 	private MessageTypeRouter router_;
 
 	public int port() {
@@ -240,11 +240,11 @@ public class HL7MLLPServer {
 				Executors.newCachedThreadPool(),
 				Executors.newCachedThreadPool()
 				);
-		this.bootstrap_ = new ServerBootstrap(this.chanFactory_);
+		this.mllp_bootstrap_ = new ServerBootstrap(this.chanFactory_);
 
 		// Set up the pipeline factory.
 		
-		this.bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
+		this.mllp_bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(
 						new MLLPDecoder(validator_),
@@ -270,7 +270,7 @@ public class HL7MLLPServer {
 	public void run() {
 		logger.info("Starting MLLP server (TCP port: "+ this.port_ + ")...");
 		// Bind and start to accept incoming connections.
-		Channel bChan = this.bootstrap_.bind(new InetSocketAddress(this.port_));
+		Channel bChan = this.mllp_bootstrap_.bind(new InetSocketAddress(this.port_));
 		this.chanGrp_.add(bChan);
 		Runtime.getRuntime().addShutdownHook(new HL7MLLPServerShutdown(this));
 	}
