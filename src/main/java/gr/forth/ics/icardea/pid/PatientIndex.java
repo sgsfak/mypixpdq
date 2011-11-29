@@ -12,6 +12,7 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.util.Terser;
 import ca.uhn.hl7v2.validation.impl.NoValidation;
 
+import gr.forth.ics.icardea.mllp.HL7MLLPClient;
 import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 
 final class CatchAllHandler extends DefaultApplication {
@@ -49,6 +50,7 @@ public class PatientIndex {
 	public static String fac_name = "icardeaPlatform";
 	
 	private HL7MLLPServer mllpServer = null;
+	private HL7MLLPClient forwarder_ = null;
 	
 	public int port() {
 		return this.mllpServer.port();
@@ -65,10 +67,24 @@ public class PatientIndex {
 		String dbHost = cfg.getKeyValue("server", "mongo_host", "localhost");
 		PatientIndex.app_name = cfg.getKeyValue("server", "application_name", app_name);
 		PatientIndex.fac_name = cfg.getKeyValue("server", "facility_name", fac_name);
-		
+
+		this.forwarder_ = new HL7MLLPClient();
+		String [][] l = cfg.getKeysAndValues("listeners");
+		for (int k = 0; k<l.length; ++k) {
+			String hp = l[k][1]; 
+			int d = hp.indexOf(':');
+			if (d <= 0) {
+				outs.println("Wrong listener format in ini file:"+hp+
+						" (it should be <host>:<port>). exiting..");
+				return;			
+			}
+			String h = hp.substring(0, d);
+			int p = Integer.parseInt(hp.substring(d+1));
+			this.forwarder_.add_listener(h, p);
+		}
 
 		for (String sec: cfg.getSections().keySet()) {
-			if (sec.equalsIgnoreCase("server"))
+			if (sec.equalsIgnoreCase("server") || sec.equalsIgnoreCase("listeners"))
 				continue;
 			String ns = cfg.getKeyValue(sec, "namespace");
 			if (AssigningAuthority.find(ns) != null) {
@@ -85,7 +101,7 @@ public class PatientIndex {
 		sm.connect(dbHost);
 
 		PatientIdentityFeedHandler pif = new PatientIdentityFeedHandler();
-		pif.register(this.mllpServer);
+		pif.register(this.mllpServer, this.forwarder_);
 
 		PatientDemographicsQueryHandler pdq = new PatientDemographicsQueryHandler();
 		pdq.register(this.mllpServer);

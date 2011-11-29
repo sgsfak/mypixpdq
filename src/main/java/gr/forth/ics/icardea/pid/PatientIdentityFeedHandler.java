@@ -1,4 +1,5 @@
 package gr.forth.ics.icardea.pid;
+import gr.forth.ics.icardea.mllp.HL7MLLPClient;
 import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 import gr.forth.ics.icardea.pid.iCARDEA_Patient.ID;
 
@@ -40,9 +41,11 @@ import ca.uhn.hl7v2.util.Terser;
 final class PatientIdentityFeedHandler extends DefaultApplication {
 	static Logger logger = Logger.getLogger(PatientIdentityFeedHandler.class);
 	public static String[] trigEvents = new String[] {"A01", "A04", "A05", "A08", "A40"};
-	public void register(HL7MLLPServer s) {
+	private HL7MLLPClient forwarder_;
+	public void register(HL7MLLPServer s, HL7MLLPClient forwarder) {
 		for (String ev: trigEvents)
 			s.registerApplication("ADT", ev, this);
+		this.forwarder_ = forwarder;
 	}
 
 	public boolean canProcess(Message msg) {
@@ -158,6 +161,7 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 							throw new HL7Exception("Patient exists already!", HL7Exception.DATA_TYPE_ERROR);
 					}
 					StorageManager.getInstance().insert_pid(tr);
+					this.forwarder_.send(msg);
 				}
 			}
 			a.getMSA().getMsa2_MessageControlID().setValue(terser.get("/MSH-10"));
