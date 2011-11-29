@@ -80,13 +80,15 @@ final public class iCARDEA_Patient extends PrimKV {
 	 */
 	public static final String ID_SEG_FLD = "@PID.3.1";
 	public static final String IDNS_SEG_FLD = "@PID.3.4.1";
+	public static final String IDOID_SEG_FLD = "@PID.3.4.2";
+	public static final String IDTYPE_SEG_FLD = "@PID.3.4.3";
 	public static final String FNAME_SEG_FLD = "@PID.5.1.1";
 	public static final String GNAME_SEG_FLD = "@PID.5.2";
 	public static final String MOT_FNAME_SEG_FLD = "@PID.6.1.1";
 	public static final String MOT_GNAME_SEG_FLD = "@PID.6.2";
 	public static final String DOB_SEG_FLD = "@PID.7.1";
 	public static final String SEX_SEG_FLD = "@PID.8";
-public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
+        public static final String ADDR_STREET_SEG_FLD = "@PID.11.1.1";
 	public static final String ADDR_CITY_SEG_FLD = "@PID.11.3";
 	public static final String ADDR_STATE_SEG_FLD = "@PID.11.4";
 	public static final String ADDR_ZIP_SEG_FLD = "@PID.11.5";

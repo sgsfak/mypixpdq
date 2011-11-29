@@ -1,0 +1,8 @@
+A PIX/PDQ Server
+================
+Stelios Sfakianakis <ssfak@ics.forth.gr>
+v1.0, July 2011
+
+This is a PIX/PDQ server written in Java for handling patient
+demographic data and patients' ids. It uses the
+http://www.mongodb.org/[MongoDB] as the underlying database

@@ -19,6 +19,14 @@ message:
  - A08 Update Patient Information
 
 
+When two patients' records are found to identify the same patient by a
+Patient Identity Source Actor in a Patient Identifier Domain and are
+merged, the Patient Identity Source shall trigger the following
+message (par. 3.8.4.2):
+
+ - A40 - Merge Patient - Internal ID
+
+
 The Patient Identity Feed transaction is conducted by the HL7 ADT
 message.
 

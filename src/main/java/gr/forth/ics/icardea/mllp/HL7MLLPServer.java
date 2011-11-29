@@ -35,71 +35,14 @@ import ca.uhn.hl7v2.model.Segment;
 import ca.uhn.hl7v2.parser.DefaultXMLParser;
 import ca.uhn.hl7v2.parser.GenericParser;
 import ca.uhn.hl7v2.util.Terser;
+import ca.uhn.hl7v2.validation.ValidationContext;
+import ca.uhn.hl7v2.validation.impl.DefaultValidation;
 
 
 import nu.xom.Serializer;
 import nu.xom.converters.DOMConverter;
 
-class MLLP_Delimiters {
-	// See http://www.corepointhealth.com/resource-center/hl7-resources/mlp-minimum-layer-protocol
-	public static final byte MLLP_HEADER = 0x0b;
-	public static final byte MLLP_TRAILER1 = 0x1c;
-	public static final byte MLLP_TRAILER2 = 0x0d;
-}
-class MLLPDecoder extends FrameDecoder {
-    @Override
-    protected Object decode(ChannelHandlerContext ctx, 
-    		Channel channel, ChannelBuffer buffer) {
 
-		// System.out.println("Decoding...");
-    	if (!buffer.readable())
-    		return null;
-    	int last = buffer.writerIndex() - 1;
-        if (buffer.getByte(last) != MLLP_Delimiters.MLLP_TRAILER2) {
-            return null;
-        }
-        buffer.writerIndex(last); // eat MLLP_TRAILER2
-        --last;
-        if (buffer.getByte(last) == MLLP_Delimiters.MLLP_TRAILER1)
-            buffer.writerIndex(last); // eat MLLP_TRAILER1
-        	
-        int first = buffer.readerIndex();
-        if (buffer.getByte(first) == MLLP_Delimiters.MLLP_HEADER) {
-            buffer.readByte(); // increment readerIndex, eat MLLP_HEADER
-        }
-        Message msg = null;
-		try {
-			GenericParser pp = new GenericParser();
-			msg = pp.parse(buffer.toString(Charset.forName("UTF-8")));
-			buffer.readerIndex(buffer.writerIndex());
-		} catch (HL7Exception ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-		}
-        return msg;
-    }
-}
-class MLLPEncoder extends SimpleChannelDownstreamHandler {
-	@Override
-	public void	writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
-		Message res = (Message) e.getMessage();
-		try {
-			// GenericParser pp = new GenericParser();
-			byte[] encoded = res.getParser().encode(res).getBytes(Charset.forName("UTF-8"));
-			ChannelBuffer outbuf = ChannelBuffers.buffer(encoded.length + 3);
-			
-			outbuf.writeByte(MLLP_Delimiters.MLLP_HEADER);
-			outbuf.writeBytes(encoded);
-			outbuf.writeByte(MLLP_Delimiters.MLLP_TRAILER1);
-			outbuf.writeByte(MLLP_Delimiters.MLLP_TRAILER2);
-			Channels.write(ctx, e.getFuture(), outbuf);
-			
-		} catch (HL7Exception ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-		}
-	}
-}
 class HL7MsgHandler extends SimpleChannelUpstreamHandler {	
 	private MessageTypeRouter router_;
 	private ChannelGroup chanGrp_;
@@ -186,9 +129,10 @@ public class HL7MLLPServer {
 
 	public static final int DEFAULT_PORT = 2575;
 	private int port_;
+	private ValidationContext validator_ = null;
 	private NioServerSocketChannelFactory chanFactory_;
 	public final ChannelGroup chanGrp_ = new DefaultChannelGroup("HL7MLLPServer");
-	private ServerBootstrap bootstrap_;
+	private ServerBootstrap mllp_bootstrap_;
 	private MessageTypeRouter router_;
 
 	public int port() {
@@ -216,20 +160,24 @@ public class HL7MLLPServer {
 		init(DEFAULT_PORT);
 	}
 	public void init(int port) {
+		init(port, null);
+	}
+	public void init(int port, ValidationContext c) {
 		this.port_ = port;
+		this.validator_ = c;
 		// Configure the server.
 		this.chanFactory_ = new NioServerSocketChannelFactory(
 				Executors.newCachedThreadPool(),
 				Executors.newCachedThreadPool()
 				);
-		this.bootstrap_ = new ServerBootstrap(this.chanFactory_);
+		this.mllp_bootstrap_ = new ServerBootstrap(this.chanFactory_);
 
 		// Set up the pipeline factory.
 		
-		this.bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
+		this.mllp_bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(
-						new MLLPDecoder(),
+						new MLLPDecoder(validator_),
 						new HL7MsgHandler(router_,chanGrp_),
 						new MLLPEncoder()
 						);
@@ -252,7 +200,7 @@ public class HL7MLLPServer {
 	public void run() {
 		logger.info("Starting MLLP server (TCP port: "+ this.port_ + ")...");
 		// Bind and start to accept incoming connections.
-		Channel bChan = this.bootstrap_.bind(new InetSocketAddress(this.port_));
+		Channel bChan = this.mllp_bootstrap_.bind(new InetSocketAddress(this.port_));
 		this.chanGrp_.add(bChan);
 		Runtime.getRuntime().addShutdownHook(new HL7MLLPServerShutdown(this));
 	}
@@ -264,7 +212,7 @@ public class HL7MLLPServer {
 	public static void main(String[] args) throws Exception {
 		HL7MLLPServer s = new HL7MLLPServer();
 		s.registerApplication("*", "*", new TestApp()/* new ca.uhn.hl7v2.app.DefaultApplication() */);
-		s.init();
+		s.init(HL7MLLPServer.DEFAULT_PORT, new ca.uhn.hl7v2.validation.impl.NoValidation());
 		s.run();
 	}
 }
