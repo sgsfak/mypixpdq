@@ -42,77 +42,7 @@ import ca.uhn.hl7v2.validation.impl.DefaultValidation;
 import nu.xom.Serializer;
 import nu.xom.converters.DOMConverter;
 
-class MLLP_Delimiters {
-	// See http://www.corepointhealth.com/resource-center/hl7-resources/mlp-minimum-layer-protocol
-	public static final byte MLLP_HEADER = 0x0b;
-	public static final byte MLLP_TRAILER1 = 0x1c;
-	public static final byte MLLP_TRAILER2 = 0x0d;
-}
-class MLLPDecoder extends FrameDecoder {
-	static Logger logger = Logger.getLogger(MLLPDecoder.class);
-	private ValidationContext validator_;
-	MLLPDecoder(ValidationContext c) {
-		this.validator_ = c;
-	}
-    @Override
-    protected Object decode(ChannelHandlerContext ctx, 
-    		Channel channel, ChannelBuffer buffer) {
-    	if (!buffer.readable())
-    		return null;
-    	int last = buffer.writerIndex() - 1;
-        if (buffer.getByte(last) != MLLP_Delimiters.MLLP_TRAILER2) {
-            return null;
-        }
-        buffer.writerIndex(last); // eat MLLP_TRAILER2
-        --last;
-        if (buffer.getByte(last) == MLLP_Delimiters.MLLP_TRAILER1)
-            buffer.writerIndex(last); // eat MLLP_TRAILER1
-        	
-        int first = buffer.readerIndex();
-        if (buffer.getByte(first) == MLLP_Delimiters.MLLP_HEADER) {
-            buffer.readByte(); // increment readerIndex, eat MLLP_HEADER
-        }
-        Message msg = null;
-		try {
-			GenericParser pp = new GenericParser();
-			if (this.validator_ != null)
-				pp.setValidationContext(this.validator_);
-                        String data = buffer.toString(Charset.forName("UTF-8"));
-                        logger.info("Recvd HL7 data:\n" + data);
-			msg = pp.parse(data);
-			buffer.readerIndex(buffer.writerIndex());
-		} catch (HL7Exception ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-		}
-        return msg;
-    }
-}
-class MLLPEncoder extends SimpleChannelDownstreamHandler {
-	static Logger logger = Logger.getLogger(MLLPEncoder.class);
-	@Override
-	public void	writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
-		Message res = (Message) e.getMessage();
-		try {
-			// GenericParser pp = new GenericParser();
-                        String data = res.getParser().encode(res);
-                        logger.info("Sending HL7 data:\n" + data);
-                        
-			byte[] encoded = data.getBytes(Charset.forName("UTF-8"));
-			ChannelBuffer outbuf = ChannelBuffers.buffer(encoded.length + 3);
-			
-			outbuf.writeByte(MLLP_Delimiters.MLLP_HEADER);
-			outbuf.writeBytes(encoded);
-			outbuf.writeByte(MLLP_Delimiters.MLLP_TRAILER1);
-			outbuf.writeByte(MLLP_Delimiters.MLLP_TRAILER2);
-			Channels.write(ctx, e.getFuture(), outbuf);
-			
-		} catch (HL7Exception ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-		}
-	}
-}
+
 class HL7MsgHandler extends SimpleChannelUpstreamHandler {	
 	private MessageTypeRouter router_;
 	private ChannelGroup chanGrp_;
