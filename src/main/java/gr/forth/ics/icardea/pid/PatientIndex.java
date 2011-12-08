@@ -72,15 +72,25 @@ public class PatientIndex {
 		String [][] l = cfg.getKeysAndValues("listeners");
 		for (int k = 0; k<l.length; ++k) {
 			String hp = l[k][1]; 
-			int d = hp.indexOf(':');
+			int sd = hp.indexOf("://");
+			if (sd <= 0) {
+				outs.println("Wrong listener format in ini file:"+hp+
+						" (it should be <scheme>://<host>:<port> where scheme one of " +
+						" 'mllp', 'mllps'). exiting..");
+				return;			
+			}
+			String scheme = hp.substring(0, sd);
+			boolean secure = scheme == "mllps";
+			sd += 3;
+			int d = hp.indexOf(':', sd);
 			if (d <= 0) {
 				outs.println("Wrong listener format in ini file:"+hp+
 						" (it should be <host>:<port>). exiting..");
 				return;			
 			}
-			String h = hp.substring(0, d);
+			String h = hp.substring(sd, d);
 			int p = Integer.parseInt(hp.substring(d+1));
-			this.forwarder_.add_listener(h, p);
+			this.forwarder_.add_listener(h, p, secure);
 		}
 
 		for (String sec: cfg.getSections().keySet()) {

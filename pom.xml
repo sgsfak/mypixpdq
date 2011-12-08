@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<!-- edited with XMLSpy v2008 rel. 2 (http://www.altova.com) by mazuki (darksiderg) -->
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
-	<parent>
+	<!--<parent>
 		<artifactId>icardea</artifactId>
-		<groupId>tr.com.srdc.icardea</groupId>
+		<groupId>gr.forth.ics.icardea</groupId>
 		<version>1.0-SNAPSHOT</version>
-		<relativePath>../../pom.xml</relativePath>
-	</parent>
+	</parent>-->
+	<groupId>gr.forth.ics.icardea</groupId>
 	<artifactId>icardea-pixpdq</artifactId>
-	<name>iCARDEA PIX PDQ Server</name>
+	<packaging>jar</packaging>
+	<version>1.0</version>
+	<name>icardea-pixpdq</name>
 	<repositories>
 		<repository>
 			<id>repository.jboss.org</id>
@@ -25,6 +26,19 @@
 			<url>http://hl7api.sourceforge.net/m2</url>
 		</repository>
 	</repositories>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.0.2</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -103,7 +117,7 @@
 		<dependency>
 			<groupId>xom</groupId>
 			<artifactId>xom</artifactId>
-			<version>1.2.5</version>
+			<version>1.2.6</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -121,101 +135,34 @@
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
-	<profiles>
-		<!--profile>
-			<id>installmongo</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<property>
-					<name>task</name>
-					<value>patientindex</value>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>install</phase>
-								<configuration>
-									<tasks>
-										<unzip src="${icardea.home}/tools_resources/python/mongodb-win32-i386-1.8.0.zip"
-											dest="${icardea.home}/tools/mongo" overwrite="false"/>
-										<mkdir dir="${icardea.home}/tools/mongo/mongodb-win32-i386-1.8.0/bin/data"/>
-										<mkdir dir="data"/>
-										<copy file="${icardea.home}/tools_resources/xdstools2.135.war" tofile="${icardea.home}/tools/apache-tomcat-6.0.20/webapps/xdstools2.135.war" overwrite="true"/>
-									</tasks>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile-->
-		<profile>
-			<id>patientindex</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<property>
-					<name>task</name>
-					<value>patientindex</value>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>exec-maven-plugin</artifactId>
-						<version>1.1</version>
-						<executions>
-							<execution>
-								<id>IHE PIX PDQ Server</id>
-								<phase>install</phase>
-								<goals>
-									<goal>java</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<mainClass>gr.forth.ics.icardea.pid.PatientIndex</mainClass>
-							<arguments>
-								<argument>${icardea.home}/icardea-config/config.ini</argument>
-							</arguments>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<!--profile>
-		<id>run.patientindex</id>
-		<build>
-			<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>exec-maven-plugin</artifactId>
-					<version>1.1.1</version>
-					<executions>
-						<execution>
-							<phase>test</phase>
-							<goals>
-								<goal>java</goal>
-							</goals>
-							<configuration>
-								<mainClass>gr.forth.ics.icardea.pid.PatientIndex</mainClass>
-								<classpathScope>runtime</classpathScope>
-								<arguments>
-									<argument>${icardea.home}/icardea-config/config.ini</argument>
-								</arguments>
-							</configuration>
-						</execution>
-					</executions>
-				</plugin>
-			</plugins>
-		</build>
-	</profile-->
+<profiles>
+ <profile>
+  <id>run</id>
+  <build>
+   <plugins>
+    <plugin>
+     <groupId>org.codehaus.mojo</groupId>
+     <artifactId>exec-maven-plugin</artifactId>
+     <version>1.1.1</version>
+     <executions>
+      <execution>
+       <phase>test</phase>
+       <goals>
+        <goal>java</goal>
+       </goals>
+       <configuration>
+        <mainClass>gr.forth.ics.icardea.pid.PatientIndex</mainClass>
+	<classpathScope>runtime</classpathScope>
+        <arguments>
+         <argument>config.ini</argument>
+        </arguments>
+       </configuration>
+      </execution>
+     </executions>
+    </plugin>
+   </plugins>
+  </build>
+ </profile>
 </profiles>
+	
 </project>

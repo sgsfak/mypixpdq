@@ -2,9 +2,13 @@ package gr.forth.ics.icardea.mllp;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import org.apache.log4j.Logger;
 /*
@@ -78,17 +82,25 @@ class ForwardHandler implements Runnable {
 	static Logger logger = Logger.getLogger(ForwardHandler.class);
 	Message msg;
 	InetSocketAddress to;
-	ForwardHandler(InetSocketAddress to, Message msg) {
+	boolean secure;
+	ForwardHandler(InetSocketAddress to, Message msg, boolean secure) {
 		this.to = to;
 		this.msg = msg;
+		this.secure = secure;
 	}
 	public void run() {
 		PipeParser p = new PipeParser();
-		ConnectionHub connectionHub = ConnectionHub.getInstance();
 		Connection connection = null;
 		Message response = null;
 		try {
-			connection = connectionHub.attach(to.getHostName(), to.getPort(), p, MinLowerLayerProtocol.class);
+			Socket socket = null;
+			if (this.secure) {
+				SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+				socket = (SSLSocket) sslsocketfactory.createSocket(to.getHostName(), to.getPort());
+			}
+			else
+				socket = new Socket(to.getHostName(), to.getPort());
+			connection = new Connection(p, new MinLowerLayerProtocol(), socket);
 			response = connection.getInitiator().sendAndReceive(msg);
 		} catch (HL7Exception e) {
 			logger.warn(e.getMessage());
@@ -99,14 +111,23 @@ class ForwardHandler implements Runnable {
 		}
 		finally {
 			if (connection != null) 
-				connectionHub.discard(connection);
+				connection.close();
 		}
+	}
+}
+class ConnectionInfo {
+	InetSocketAddress hp;
+	boolean secure;
+	
+	ConnectionInfo(InetSocketAddress hp, boolean secure) {
+		this.hp = hp;
+		this.secure = secure;
 	}
 }
 public class HL7MLLPClient {
 	static Logger logger = Logger.getLogger(HL7MLLPClient.class);
 	// private ChannelFactory chanFact_;
-	private ArrayList<InetSocketAddress> listeners_ = new ArrayList<InetSocketAddress>();
+	private ArrayList<ConnectionInfo> listeners_ = new ArrayList<ConnectionInfo>();
 	private ExecutorService pool = Executors.newCachedThreadPool();
 	public HL7MLLPClient() {
 		/*
@@ -117,12 +138,12 @@ public class HL7MLLPClient {
 					Executors.newCachedThreadPool());
 					*/
 	}
-	public void add_listener(String host, int port) {
-		this.listeners_.add(new InetSocketAddress(host, port));
+	public void add_listener(String host, int port, boolean secure) {
+		this.listeners_.add(new ConnectionInfo(new InetSocketAddress(host, port), secure));
 	}
 	public void send(final Message msg) {
-		for (InetSocketAddress to: this.listeners_) {
-			pool.execute(new ForwardHandler(to, msg));
+		for (ConnectionInfo to: this.listeners_) {
+			pool.execute(new ForwardHandler(to.hp, msg, to.secure));
 			/*
 		// TODO: make parallel connections
 			// Set up the pipeline factory.
@@ -175,7 +196,7 @@ public class HL7MLLPClient {
 		}
 
 		HL7MLLPClient c = new HL7MLLPClient();
-		c.add_listener("iapetus", 2825);
+		c.add_listener("iapetus", 2825, false);
 		c.send(msg);
 		c.stop();
 	}
