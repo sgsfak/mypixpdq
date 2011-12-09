@@ -3,6 +3,7 @@ package gr.forth.ics.icardea.mllp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -96,7 +97,9 @@ class ForwardHandler implements Runnable {
 			Socket socket = null;
 			if (this.secure) {
 				SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-				socket = (SSLSocket) sslsocketfactory.createSocket(to.getHostName(), to.getPort());
+				SSLSocket sslsocket = (SSLSocket) sslsocketfactory.createSocket(to.getHostName(), to.getPort());
+				sslsocket.startHandshake();
+				socket = sslsocket;
 			}
 			else
 				socket = new Socket(to.getHostName(), to.getPort());
@@ -137,8 +140,10 @@ public class HL7MLLPClient {
 					Executors.newCachedThreadPool(),
 					Executors.newCachedThreadPool());
 					*/
+		Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
 	}
 	public void add_listener(String host, int port, boolean secure) {
+		logger.info("adding " + (secure ? "ssl" : "") + " listener " + host + ":" + port); 
 		this.listeners_.add(new ConnectionInfo(new InetSocketAddress(host, port), secure));
 	}
 	public void send(final Message msg) {

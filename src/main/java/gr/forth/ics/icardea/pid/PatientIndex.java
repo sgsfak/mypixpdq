@@ -80,7 +80,7 @@ public class PatientIndex {
 				return;			
 			}
 			String scheme = hp.substring(0, sd);
-			boolean secure = scheme == "mllps";
+			boolean secure = "mllps".equalsIgnoreCase(scheme);
 			sd += 3;
 			int d = hp.indexOf(':', sd);
 			if (d <= 0) {
