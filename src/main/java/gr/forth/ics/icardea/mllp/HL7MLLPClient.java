@@ -147,6 +147,10 @@ public class HL7MLLPClient {
 		this.listeners_.add(new ConnectionInfo(new InetSocketAddress(host, port), secure));
 	}
 	public void send(final Message msg) {
+		try {
+			logger.info("Sending Update Notification:\n" + msg.encode());
+		} catch (HL7Exception e) {
+		}
 		for (ConnectionInfo to: this.listeners_) {
 			pool.execute(new ForwardHandler(to.hp, msg, to.secure));
 			/*

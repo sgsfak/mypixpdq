@@ -4,6 +4,8 @@ import gr.forth.ics.icardea.mllp.HL7MLLPServer;
 import gr.forth.ics.icardea.pid.iCARDEA_Patient.ID;
 
 import java.io.IOException;
+import java.util.Date;
+import java.util.GregorianCalendar;
 
 import org.apache.log4j.Logger;
 
@@ -13,11 +15,13 @@ import ca.uhn.hl7v2.app.DefaultApplication;
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.Segment;
 import ca.uhn.hl7v2.model.Type;
+import ca.uhn.hl7v2.model.primitive.CommonTS;
 import ca.uhn.hl7v2.model.v231.segment.MRG;
 import ca.uhn.hl7v2.model.v231.segment.PID;
 import ca.uhn.hl7v2.model.v231.datatype.CX;
 import ca.uhn.hl7v2.model.v231.message.ACK;
 import ca.uhn.hl7v2.model.v231.message.ADT_A39;
+import ca.uhn.hl7v2.model.v25.message.ADT_A05;
 import ca.uhn.hl7v2.model.v25.message.RSP_K21;
 import ca.uhn.hl7v2.util.Terser;
 
@@ -74,6 +78,30 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 			namespace = auth.namespace;
 		}
 		return namespace;
+	}
+
+	/**
+	 * See ITI-vol2a, 3.10
+	 * @throws HL7Exception 
+	 */
+	static private Message update_notification(iCARDEA_Patient tr) throws HL7Exception {
+		ca.uhn.hl7v2.model.v25.message.ADT_A05 b = new ca.uhn.hl7v2.model.v25.message.ADT_A05();
+
+		HL7Utils.createHeader(b.getMSH(), "2.5");
+		
+		b.getMSH().getMsh9_MessageType().parse("ADT^A31^ADT_05");
+		b.getMSH().getReceivingApplication().parse(PatientIndex.app_name+"_update_client"); //XXX
+		b.getMSH().getReceivingFacility().parse(PatientIndex.fac_name); // XXX
+		b.getMSH().getMessageProfileIdentifier(0).parse("ITI-10^IHE");
+		
+		GregorianCalendar now = new GregorianCalendar();
+		now.setTime(new Date());
+		b.getEVN().getRecordedDateTime().parse(CommonTS.toHl7TSFormat(now));
+		tr.toPidv25(b.getPID(), true);
+		b.getPID().getPid5_PatientName(0).parse(" "); 
+		
+		b.getPV1().getPatientClass().parse("N");
+		return b;
 	}
 	/**
 	 * See ITI-vol2a, 3.8
@@ -161,7 +189,9 @@ final class PatientIdentityFeedHandler extends DefaultApplication {
 							throw new HL7Exception("Patient exists already!", HL7Exception.DATA_TYPE_ERROR);
 					}
 					StorageManager.getInstance().insert_pid(tr);
-					this.forwarder_.send(msg);
+					
+					Message notification = update_notification(tr);
+					this.forwarder_.send(notification);
 				}
 			}
 			a.getMSA().getMsa2_MessageControlID().setValue(terser.get("/MSH-10"));
