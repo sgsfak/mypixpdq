@@ -14,6 +14,7 @@ import ca.uhn.hl7v2.validation.impl.NoValidation;
 
 import gr.forth.ics.icardea.mllp.HL7MLLPClient;
 import gr.forth.ics.icardea.mllp.HL7MLLPServer;
+import gr.forth.ics.icardea.mllp.SslContextFactory;
 
 final class CatchAllHandler extends DefaultApplication {
 
@@ -64,6 +65,12 @@ public class PatientIndex {
 		cfg.load(args[0]);
 
 		int port = cfg.getKeyIntValue("server", "port", 2575);
+		boolean useSSL = cfg.getKeyBoolValue("server", "secure", false);
+		String keystore = null, keystorePass = null;
+		if (useSSL) {
+			keystore = cfg.getKeyValue("server", "keystore", "pix.jks");
+			keystorePass = cfg.getKeyValue("server", "keystorepass", "changeit");
+		}
 		String dbHost = cfg.getKeyValue("server", "mongo_host", "localhost");
 		PatientIndex.app_name = cfg.getKeyValue("server", "application_name", app_name);
 		PatientIndex.fac_name = cfg.getKeyValue("server", "facility_name", fac_name);
@@ -122,7 +129,10 @@ public class PatientIndex {
 		
 		CatchAllHandler cah = new CatchAllHandler();
 		this.mllpServer.registerApplication("*", "*", cah);
-		this.mllpServer.init(port, new NoValidation());
+		if (useSSL) 
+			this.mllpServer.init_with_tls(port, new NoValidation(), keystore, keystorePass );
+		else
+			this.mllpServer.init(port, new NoValidation());
 		this.mllpServer.run();
 	}
 	public void stop() {

@@ -69,6 +69,13 @@ final class IniConfig {
 		}
 	}
 
+	public boolean getKeyBoolValue(String section, String key, boolean defaultValue) {
+		String value = getKeyValue(section, key.toLowerCase());
+		if (value == null)
+			return defaultValue;
+		else 
+			return Boolean.parseBoolean(value);
+	}
 
 	public String[][] getKeysAndValues(String aSection) {
 		Hashtable<String, String> section = getSection(aSection);

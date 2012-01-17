@@ -9,19 +9,19 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.FrameDecoder;
-import java.nio.charset.Charset;
+import org.jboss.netty.handler.ssl.SslHandler;
+
+import javax.net.ssl.SSLEngine;
 
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.Application;
@@ -50,6 +50,7 @@ class HL7MsgHandler extends SimpleChannelUpstreamHandler {
 		this.router_ = router;
 		this.chanGrp_ = chanGrp;
 	}
+	/*
 	@Override
     public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) {
       // HERE: Add all accepted channels to the group
@@ -58,6 +59,29 @@ class HL7MsgHandler extends SimpleChannelUpstreamHandler {
       //       it will be removed from the group automatically.
 	  this.chanGrp_.add(ctx.getChannel());
     } 
+    */
+	@Override
+	public void channelConnected(
+			ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+
+		// Get the SslHandler in the current pipeline.
+		// We (possibly) added it in SecureChatPipelineFactory.
+		final SslHandler sslHandler = ctx.getPipeline().get(SslHandler.class);
+		if (sslHandler != null) {
+			// Get notified when SSL handshake is done.
+			ChannelFuture handshakeFuture = sslHandler.handshake();
+			handshakeFuture.addListener(new SSLFutureListener(this.chanGrp_));
+		}
+		else
+			this.chanGrp_.add(ctx.getChannel());
+	}
+	@Override
+	public void channelDisconnected(
+			ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		// Unregister the channel from the global channel list
+		// so the channel does not receive messages anymore.
+		this.chanGrp_.remove(e.getChannel());
+	}
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent ev) {
 		
@@ -84,6 +108,27 @@ class HL7MsgHandler extends SimpleChannelUpstreamHandler {
 		// e.getCause().printStackTrace();
 		e.getChannel().close();
 	}
+	
+	 private static final class SSLFutureListener implements ChannelFutureListener {
+
+	      private ChannelGroup chanGrp_;
+
+	      SSLFutureListener(ChannelGroup chanGrp) {
+	          this.chanGrp_ = chanGrp;
+	      }
+
+	      public void operationComplete(ChannelFuture future) throws Exception {
+	          if (future.isSuccess()) {
+	              // Now the session is secured!
+	              // Register the channel to the global channel list
+	              // so the channel received the messages from others.
+	        	  chanGrp_.add(future.getChannel());
+	          } else {
+	              future.getChannel().close();
+	          }
+	      }
+	  }
+
 }
 
 class TestApp extends ca.uhn.hl7v2.app.DefaultApplication {
@@ -124,19 +169,54 @@ class TestApp extends ca.uhn.hl7v2.app.DefaultApplication {
 		 return res;
 	 }
 }
+
+class HL7MLLPServerPipelineFactory implements ChannelPipelineFactory {
+	private final HL7MLLPServer server_;
+	HL7MLLPServerPipelineFactory(HL7MLLPServer server) {
+		this.server_ = server;
+	}
+
+	public ChannelPipeline getPipeline() throws Exception {
+		ChannelPipeline pipeline = Channels.pipeline();
+		if (this.server_.isSecure_) {
+			SSLEngine engine =
+				SslContextFactory.getInstance().getServerContext().createSSLEngine();
+			engine.setUseClientMode(false); // We are the Server!!!
+			// these are proposed in the ATNA wiki
+			String[] suites = 
+			{
+					"TLS_RSA_WITH_AES_128_CBC_SHA", 
+					"TLS_DHE_DSS_WITH_AES_128_CBC_SHA"  // Diffie Hellman Key Exchange using DSS Certificate
+			};
+			String enabledProtocols[] = { "TLSv1" };
+			engine.setEnabledCipherSuites(suites);
+			engine.setEnabledProtocols(enabledProtocols);
+			
+			pipeline.addLast("ssl", new SslHandler(engine));
+		}
+		pipeline.addLast("decoder",new MLLPDecoder(this.server_.validator_));
+		pipeline.addLast("framer", new HL7MsgHandler(this.server_.router_,this.server_.chanGrp_));
+		pipeline.addLast("encoder",new MLLPEncoder());
+		return pipeline;
+	}
+}
 public class HL7MLLPServer {
 	static Logger logger = Logger.getLogger(HL7MLLPServer.class);
 
 	public static final int DEFAULT_PORT = 2575;
 	private int port_;
-	private ValidationContext validator_ = null;
-	private NioServerSocketChannelFactory chanFactory_;
+	ValidationContext validator_ = null;
+	NioServerSocketChannelFactory chanFactory_;
 	public final ChannelGroup chanGrp_ = new DefaultChannelGroup("HL7MLLPServer");
 	private ServerBootstrap mllp_bootstrap_;
-	private MessageTypeRouter router_;
+	MessageTypeRouter router_;
+	boolean isSecure_ = false;
 
 	public int port() {
 		return this.port_;
+	}
+	public boolean usesTLS() {
+		return this.isSecure_;
 	}
 	static class HL7MLLPServerShutdown extends Thread {
 	    private HL7MLLPServer server_;
@@ -162,6 +242,12 @@ public class HL7MLLPServer {
 	public void init(int port) {
 		init(port, null);
 	}
+	public void init_with_tls(int port, ValidationContext c, String keystoreFileName, String keystorePass) {
+
+		this.isSecure_ = true;
+		SslContextFactory.getInstance().init(keystoreFileName, keystorePass);
+		this.init(port, c);
+	}
 	public void init(int port, ValidationContext c) {
 		this.port_ = port;
 		this.validator_ = c;
@@ -174,15 +260,7 @@ public class HL7MLLPServer {
 
 		// Set up the pipeline factory.
 		
-		this.mllp_bootstrap_.setPipelineFactory(new ChannelPipelineFactory() {
-			public ChannelPipeline getPipeline() throws Exception {
-				return Channels.pipeline(
-						new MLLPDecoder(validator_),
-						new HL7MsgHandler(router_,chanGrp_),
-						new MLLPEncoder()
-						);
-			}
-		});
+		this.mllp_bootstrap_.setPipelineFactory(new HL7MLLPServerPipelineFactory(this));
 	}
 	/**
 	 * Registers the given application to handle messages corresponding to the given type
@@ -198,7 +276,8 @@ public class HL7MLLPServer {
 	}
 	
 	public void run() {
-		logger.info("Starting MLLP server (TCP port: "+ this.port_ + ")...");
+		logger.info("Starting MLLP server (TCP port: "+ this.port_ + ") SSL: "+ 
+				(this.isSecure_ ? " YES " : "NO"));
 		// Bind and start to accept incoming connections.
 		Channel bChan = this.mllp_bootstrap_.bind(new InetSocketAddress(this.port_));
 		this.chanGrp_.add(bChan);
