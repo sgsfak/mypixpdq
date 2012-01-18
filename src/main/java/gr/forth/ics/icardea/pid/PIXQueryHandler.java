@@ -77,8 +77,10 @@ final class PIXQueryHandler implements Application {
 			String ns = Terser.get(qpd, 3, 0, 4, 1);
 			if (ns == null || "".equals(ns)) {
 				String uid = Terser.get(qpd, 3, 0, 4, 2);
-				String uid_type = Terser.get(qpd, 3, 0, 4, 2);
+				String uid_type = Terser.get(qpd, 3, 0, 4, 3);
+				// System.out.println("GOT uid='"+uid+"' type='"+uid_type+"'");
 				fromAuth = AssigningAuthority.find_by_uid(uid, uid_type);
+				ns = fromAuth.namespace;
 			}
 			else 
 				fromAuth = AssigningAuthority.find(ns);
