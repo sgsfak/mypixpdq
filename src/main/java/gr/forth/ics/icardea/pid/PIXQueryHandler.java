@@ -80,7 +80,6 @@ final class PIXQueryHandler implements Application {
 				String uid_type = Terser.get(qpd, 3, 0, 4, 3);
 				// System.out.println("GOT uid='"+uid+"' type='"+uid_type+"'");
 				fromAuth = AssigningAuthority.find_by_uid(uid, uid_type);
-				ns = fromAuth.namespace;
 			}
 			else 
 				fromAuth = AssigningAuthority.find(ns);
@@ -92,7 +91,7 @@ final class PIXQueryHandler implements Application {
 				throw ex;
 			}
 			
-			iCARDEA_Patient.ID fromId = new iCARDEA_Patient.ID(ns, id);
+			iCARDEA_Patient.ID fromId = new iCARDEA_Patient.ID(fromAuth.namespace, id);
 
 			HashSet<String> hs = new HashSet<String>();
 			Type[] tt = qpd.getField(4);
