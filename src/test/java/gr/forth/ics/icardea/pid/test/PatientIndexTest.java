@@ -1,6 +1,11 @@
 package gr.forth.ics.icardea.pid.test;
 
 import java.io.IOException;
+import java.net.Socket;
+import java.security.Security;
+
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import gr.forth.ics.icardea.pid.HL7Utils;
 import gr.forth.ics.icardea.pid.PatientIndex;
@@ -19,18 +24,19 @@ import ca.uhn.hl7v2.llp.LLPException;
 import ca.uhn.hl7v2.llp.MinLowerLayerProtocol;
 import ca.uhn.hl7v2.model.Message;
 
+import ca.uhn.hl7v2.model.v25.datatype.CX;
 import ca.uhn.hl7v2.model.v25.message.QBP_Q21;
+import ca.uhn.hl7v2.model.v25.message.RSP_K23;
 import ca.uhn.hl7v2.model.v25.segment.QPD;
+import ca.uhn.hl7v2.model.v25.segment.PID;
 import ca.uhn.hl7v2.parser.PipeParser;
 
 public class  PatientIndexTest {
+	public static final String ICARDEA_PIX_OID = "1.2.826.0.1.3680043.2.44.248240.1";
 	private static PatientIndex pid = null;
-	private static ConnectionHub connectionHub = null;
-
+	private static Connection connection = null;
+	
 	private Message sendAndRecv(Message msg) throws LLPException, HL7Exception, IOException {
-		// The connection hub connects to listening servers
-		// A connection object represents a socket attached to an HL7 server
-		Connection connection = connectionHub.attach("localhost", pid.port(), new PipeParser(), MinLowerLayerProtocol.class);
 		// The initiator is used to transmit unsolicited messages
 		Initiator initiator = connection.getInitiator();
 		Message response = initiator.sendAndReceive(msg);
@@ -39,8 +45,8 @@ public class  PatientIndexTest {
 
 	@Test
 	public void testPDQ() throws HL7Exception, LLPException, IOException {
-		Message m = this.pdq("Sfakianakis", "Stelios", null, "2007");
-		System.out.println(m.encode());
+		Message m = this.pdq("Sfakianakis", "Stelios", null, null);
+		System.out.println("---PDQ----\n"+m.encode());
 	}
 	@Test
 	public void testFeed() {
@@ -59,12 +65,61 @@ public class  PatientIndexTest {
 		//PV1||O
 	}
 	@Test
-	public void testQuery() {
+	public void testQuery() throws HL7Exception, LLPException, IOException {
 
 		// PIX Query
 		//MSH|^~\&|PACS_FUJIFILM|FUJIFILM|PAT_IDENTITY_X_REF_MGR_MISYS|ALLSCRIPTS|20090223144546||QBP^Q23^QBP_Q21|1235421946|P|2.5|||||||
 		//QPD|IHEPIXQuery|Q231235421946|103^^^icardea|^^^ORBIS
 		//RCP|I|
+
+		QBP_Q21 a = new QBP_Q21();		
+		// Construct MSH according to C2.2 of ITI TF-2x
+		HL7Utils.createHeader(a.getMSH(), "2.5");
+		a.getMSH().getMsh9_MessageType().parse("QBP^Q23^QBP_Q21");
+		// Set UTF-8 character set? See:
+		// http://wiki.hl7.org/index.php?title=Character_Set_used_in_v2_messages
+		a.getMSH().getCharacterSet(0).setValue("UNICODE UTF-8");
+
+		// Set Sending app identification
+		a.getMSH().getSendingApplication().parse("testclient^icardea");
+		a.getMSH().getSendingFacility().parse("SALK^icardea");
+		// Set Receiving app identification
+		a.getMSH().getReceivingApplication().parse("PID^icardea");
+		a.getMSH().getReceivingFacility().parse("iCARDEAPlatform");
+		QPD qpd = a.getQPD();
+		qpd.getQpd1_MessageQueryName().parse("IHE PIX Query");
+		qpd.getQpd2_QueryTag().setValue("pix-query-1"); // A query identifier
+		CX from = new CX(a);
+		from.getCx1_IDNumber().setValue("o103"); // we search for this id in the iCARDEA domain
+
+		from.getCx4_AssigningAuthority().getHd2_UniversalID().setValue(ICARDEA_PIX_OID);
+		from.getCx4_AssigningAuthority().getHd3_UniversalIDType().setValue("ISO");
+
+		qpd.getField(3,0).parse(from.encode());
+		
+		String toDomain = "ORBIS";
+		
+		a.getRCP().getRcp3_ResponseModality().getCe1_Identifier().setValue("I");
+		Message m = this.sendAndRecv(a);
+		RSP_K23 ret = (RSP_K23) m;
+		System.out.println("***PIX*****\n"+ret.encode()+"\n+++++++");
+		String status =ret.getQAK().getQak2_QueryResponseStatus().getValue();
+		if ("AE".equals(status)) {
+			// Application Error!!
+			// ...
+		}
+		else if ("NF".equals(status)){
+			// Not Found!!!
+		}
+		else {
+			PID pid = ret.getQUERY_RESPONSE().getPID();
+			for (CX d: pid.getPatientIdentifierList()) {
+				if (toDomain.equals(d.getAssigningAuthority().getHd1_NamespaceID().getValue())) {
+					String id = d.getCx1_IDNumber().getValue();
+					System.out.println("Found ID="+id+" in domain "+toDomain);
+				}
+			}
+		}
 	}
 
 	// PDQ - Produces something like:
@@ -114,13 +169,23 @@ public class  PatientIndexTest {
 		a.getRCP().getRcp1_QueryPriority().setValue("I"); // immediate mode response
 		return this.sendAndRecv(a);
 	}
-
 	@BeforeClass
 	public static void setup() throws Exception {
 		pid = new PatientIndex();
-		pid.run(new String[]{"../../icardea-config/config.ini"});
+		pid.run(new String[]{"config.ini"});
+		
+		PipeParser p = new PipeParser();
+		Socket socket = null;
 
-		connectionHub = ConnectionHub.getInstance();
+		if (pid.usesTLS()) {
+			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+			SSLSocket sslsocket = (SSLSocket) sslsocketfactory.createSocket("localhost", pid.port());
+			sslsocket.startHandshake();
+			socket = sslsocket;
+		}
+		else
+			socket = new Socket("localhost", pid.port());
+		connection = new Connection(p, new MinLowerLayerProtocol(), socket);
 	}
 
 	@AfterClass
@@ -128,6 +193,7 @@ public class  PatientIndexTest {
 		pid.stop();
 	}
 	public static void main(String args[]) {
+
 		org.junit.runner.JUnitCore.main("gr.forth.ics.icardea.pid.test.PatientIndexTest");
 	}
 }

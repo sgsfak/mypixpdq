@@ -56,6 +56,9 @@ public class PatientIndex {
 	public int port() {
 		return this.mllpServer.port();
 	}
+	public boolean usesTLS() {
+		return this.mllpServer.usesTLS();
+	}
 	public void run(String[] args) throws Exception {
 		if (args.length != 1) {
 			usage();
