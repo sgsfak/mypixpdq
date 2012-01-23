@@ -176,21 +176,28 @@ class HL7MLLPServerPipelineFactory implements ChannelPipelineFactory {
 		this.server_ = server;
 	}
 
-	public ChannelPipeline getPipeline() throws Exception {
-		ChannelPipeline pipeline = Channels.pipeline();
-		if (this.server_.isSecure_) {
-			SSLEngine engine =
-				SslContextFactory.getInstance().getServerContext().createSSLEngine();
-			engine.setUseClientMode(false); // We are the Server!!!
-			// these are proposed in the ATNA wiki
-			String[] suites = 
-			{
-					"TLS_RSA_WITH_AES_128_CBC_SHA", 
-					"TLS_DHE_DSS_WITH_AES_128_CBC_SHA"  // Diffie Hellman Key Exchange using DSS Certificate
-			};
-			String enabledProtocols[] = { "TLSv1" };
-			engine.setEnabledCipherSuites(suites);
-			engine.setEnabledProtocols(enabledProtocols);
+    public ChannelPipeline getPipeline() throws Exception {
+        ChannelPipeline pipeline = Channels.pipeline(); if
+            (this.server_.isSecure_) { SSLEngine engine =
+                SslContextFactory.getInstance().getServerContext().createSSLEngine();
+                engine.setUseClientMode(false); // We are the Server!!!
+            // These cipher suites are proposed in IHE TF-2 3.19.6.2
+            // and in the ATNA FAQ wiki (http://wiki.ihe.net/index.php?title=ATNA_FAQ)
+            String[] suites = { 
+                "TLS_RSA_WITH_AES_128_CBC_SHA",
+                "TLS_DHE_DSS_WITH_AES_128_CBC_SHA"  // Diffie Hellman Key Exchange using DSS Certificate 
+            }; 
+            String enabledProtocols[] = { "TLSv1" };
+            /* Unfortunately the ciphers above are not supported by
+             * default in Windows XP and Windows Server 2003 by Schannel
+             * used in .NET for example. For Windows 2003 there's a
+             * "hotfix" (http://support.microsoft.com/kb/948963). In any
+             * case to ease deployment we opted to not be so strict by
+             * supporting only TLS and the AES based ciphers.  So the
+             * following two lines are commented out for now.  
+             * */
+            // engine.setEnabledCipherSuites(suites);
+            // engine.setEnabledProtocols(enabledProtocols);
 			
 			pipeline.addLast("ssl", new SslHandler(engine));
 		}
