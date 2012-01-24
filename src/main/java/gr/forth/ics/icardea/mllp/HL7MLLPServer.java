@@ -177,10 +177,11 @@ class HL7MLLPServerPipelineFactory implements ChannelPipelineFactory {
 	}
 
     public ChannelPipeline getPipeline() throws Exception {
-        ChannelPipeline pipeline = Channels.pipeline(); if
-            (this.server_.isSecure_) { SSLEngine engine =
+        ChannelPipeline pipeline = Channels.pipeline(); 
+        if (this.server_.isSecure_) { 
+            SSLEngine engine =
                 SslContextFactory.getInstance().getServerContext().createSSLEngine();
-                engine.setUseClientMode(false); // We are the Server!!!
+            engine.setUseClientMode(false); // We are the Server!!!
             // These cipher suites are proposed in IHE TF-2 3.19.6.2
             // and in the ATNA FAQ wiki (http://wiki.ihe.net/index.php?title=ATNA_FAQ)
             String[] suites = { 
